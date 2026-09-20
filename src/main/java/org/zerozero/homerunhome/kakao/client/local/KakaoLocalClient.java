@@ -13,6 +13,7 @@ import org.zerozero.homerunhome.kakao.client.support.KakaoClientExecutor;
 import org.zerozero.homerunhome.kakao.dto.common.KakaoCoordinate;
 import org.zerozero.homerunhome.kakao.dto.common.KakaoSearchResult;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoAddressSearchRequest;
+import org.zerozero.homerunhome.kakao.dto.request.KakaoCategoryPlaceSearchRequest;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoPlaceSearchRequest;
 import org.zerozero.homerunhome.kakao.dto.response.KakaoAddress;
 import org.zerozero.homerunhome.kakao.dto.response.KakaoPlace;
@@ -65,8 +66,29 @@ public class KakaoLocalClient {
                         if (request.radiusMeters() != null) {
                             builder.queryParam("radius", request.radiusMeters());
                         }
+                        if (request.categoryGroupCode() != null) {
+                            builder.queryParam("category_group_code", request.categoryGroupCode());
+                        }
+                        if (request.bounds() != null) {
+                            builder.queryParam("rect", request.bounds().apiValue());
+                        }
                         return builder.build();
                     })
+                    .retrieve()
+                    .body(PLACE_RESPONSE_TYPE);
+            return mapPlaces(response);
+        });
+    }
+
+    public KakaoSearchResult<KakaoPlace> searchPlacesByCategory(KakaoCategoryPlaceSearchRequest request) {
+        return executor.execute("categoryPlaceSearch", () -> {
+            var response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/v2/local/search/category.json")
+                            .queryParam("category_group_code", request.categoryGroupCode())
+                            .queryParam("rect", request.bounds().apiValue())
+                            .queryParam("page", request.page())
+                            .queryParam("size", request.size())
+                            .build())
                     .retrieve()
                     .body(PLACE_RESPONSE_TYPE);
             return mapPlaces(response);
