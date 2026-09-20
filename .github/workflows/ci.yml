@@ -1,4 +1,4 @@
-name: Backend CI
+name: Backend CI/CD
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: backend-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
@@ -40,6 +40,13 @@ jobs:
       - name: Run tests and build
         run: ./gradlew clean build --no-daemon
 
+      - name: Check deployment scripts and rollback behavior
+        run: |
+          for script in scripts/deploy-jar.sh scripts/install-service.sh scripts/deploy-from-actions.sh; do
+            bash -n "$script"
+          done
+          python3 -m unittest discover -s scripts/tests -v
+
       - name: Upload test reports
         if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -60,3 +67,32 @@ jobs:
             !build/libs/*-plain.jar
           if-no-files-found: error
           retention-days: 3
+
+  deploy:
+    name: Deploy JAR to EC2
+    needs: build
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out deployment scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Download tested JAR
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: backend-jar-${{ github.sha }}
+          path: build/libs
+
+      - name: Transfer JAR and restart service
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/deploy-from-actions.sh

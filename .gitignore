@@ -37,3 +37,6 @@ out/
 .vscode/
 
 .env
+app.env
+*.pem
+__pycache__/
