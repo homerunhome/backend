@@ -30,6 +30,9 @@ public class ItineraryPlace {
     @Column(precision = 10, scale = 7)
     private BigDecimal longitude;
 
+    @Column(name = "travel_from_previous_minutes")
+    private Long travelFromPreviousMinutes;
+
     @Column(name = "arrives_at")
     private LocalDateTime arrivesAt;
 

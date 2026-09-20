@@ -176,6 +176,28 @@ public class Itinerary {
         this.timeline = new ArrayList<>(timeline);
     }
 
+    public void updatePlacePlan(
+            List<ItineraryPlace> places,
+            Integer stadiumEntryBufferMinutes,
+            LocalDateTime stadiumArrivalAt,
+            Long gameStartSlackMinutes,
+            LocalDateTime stadiumDepartureRecommendedAt,
+            LocalDateTime expectedGameEndAt,
+            String planStatus,
+            List<String> planWarnings,
+            List<ItineraryTimelineEntry> timeline) {
+        this.places = new ArrayList<>(places);
+        this.stadiumEntryBufferMinutes = stadiumEntryBufferMinutes;
+        this.stadiumArrivalAt = stadiumArrivalAt;
+        this.gameStartSlackMinutes = gameStartSlackMinutes;
+        this.stadiumDepartureRecommendedAt = stadiumDepartureRecommendedAt;
+        this.expectedGameEndAt = expectedGameEndAt;
+        this.gameEndMayBeDelayed = true;
+        this.planStatus = planStatus;
+        this.planWarnings = new ArrayList<>(planWarnings);
+        this.timeline = new ArrayList<>(timeline);
+    }
+
     public List<String> getPreferences() {
         return List.copyOf(preferences);
     }
