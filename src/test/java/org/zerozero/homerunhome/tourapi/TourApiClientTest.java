@@ -8,6 +8,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,6 +77,38 @@ class TourApiClientTest {
         assertEquals("한밭수목원", response.items().getFirst().title());
         assertEquals("127.388", response.items().getFirst().longitude().toPlainString());
         assertEquals(1, response.totalCount());
+        koreanServer.verify();
+    }
+
+    @Test
+    void findsTourismContentsAroundCoordinate() {
+        koreanServer.expect(requestTo(Matchers.containsString("/KorService2/locationBasedList2")))
+                .andExpect(queryParam("mapX", "127.429188"))
+                .andExpect(queryParam("mapY", "36.317067"))
+                .andExpect(queryParam("radius", "1500"))
+                .andExpect(queryParam("contentTypeId", "12"))
+                .andExpect(queryParam("arrange", "E"))
+                .andRespond(withSuccess(successResponse("""
+                        [{
+                          "contentid":"tour-1",
+                          "contenttypeid":"12",
+                          "title":"야구장 주변 관광지",
+                          "mapx":"127.430",
+                          "mapy":"36.318"
+                        }]
+                        """, 1), MediaType.APPLICATION_JSON));
+
+        var response = koreanClient.findNearbyContents(
+                "12",
+                new BigDecimal("127.429188"),
+                new BigDecimal("36.317067"),
+                1500,
+                1,
+                100);
+
+        assertThat(response.items()).singleElement()
+                .extracting(content -> content.title())
+                .isEqualTo("야구장 주변 관광지");
         koreanServer.verify();
     }
 
