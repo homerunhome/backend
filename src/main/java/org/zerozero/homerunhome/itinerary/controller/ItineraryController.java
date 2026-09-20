@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.zerozero.homerunhome.common.ApiErrorResponse;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryAutoPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlacesEditRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
@@ -34,14 +35,24 @@ public class ItineraryController {
     @PostMapping("/generate")
     @Operation(
             summary = "경기 전 기본 코스 생성",
-            description = "장소별 이동·체류시간과 교통편 여유시간으로 시간순 일정을 계산하고 저장합니다.")
+            description = "장소별 이동·체류시간과 교통편 여유시간으로 시간순 일정을 계산하고 선택한 열차 정보를 함께 저장합니다.")
     public ResponseEntity<ItineraryResponse> generate(@Valid @RequestBody ItineraryPlanRequest request) {
         ItineraryResponse response = itineraryService.generate(request);
         return ResponseEntity.created(URI.create("/api/itineraries/" + response.id())).body(response);
     }
 
+    @PostMapping("/generate/optimized")
+    @Operation(
+            summary = "실제 이동시간 기준 코스 생성",
+            description = "이미 선택한 장소 후보와 구간별 이동시간을 기준으로 전체 후보를 방문하는 최단 이동 순서를 계산합니다.")
+    public ResponseEntity<ItineraryResponse> generateOptimized(
+            @Valid @RequestBody ItineraryAutoPlanRequest request) {
+        ItineraryResponse response = itineraryService.generateOptimized(request);
+        return ResponseEntity.created(URI.create("/api/itineraries/" + response.id())).body(response);
+    }
+
     @PostMapping
-    @Operation(summary = "원정 일정 생성", description = "선택한 경기, 교통편, 성향 및 장소 순서를 저장합니다.")
+    @Operation(summary = "원정 일정 생성", description = "선택한 경기, 왕편·귀가편 열차, 성향 및 장소 순서를 저장합니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "일정 생성 성공"),
         @ApiResponse(

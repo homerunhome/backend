@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import org.zerozero.homerunhome.game.domain.Game;
 import org.zerozero.homerunhome.itinerary.domain.Itinerary;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryTimelineEntry;
+import org.zerozero.homerunhome.itinerary.domain.ItineraryTrain;
 
 @Schema(description = "원정 일정 응답")
 public record ItineraryResponse(
@@ -22,8 +23,10 @@ public record ItineraryResponse(
         String awayTeam,
         String arrivalPlace,
         LocalDateTime arrivalAt,
+        TrainResponse arrivalTrain,
         String departurePlace,
         LocalDateTime departureAt,
+        TrainResponse returnTrain,
         List<String> preferences,
         List<PlaceResponse> places,
         String travelMode,
@@ -51,8 +54,10 @@ public record ItineraryResponse(
                 game.getAwayTeam(),
                 itinerary.getArrivalPlace(),
                 itinerary.getArrivalAt(),
+                TrainResponse.from(itinerary.getArrivalTrain()),
                 itinerary.getDeparturePlace(),
                 itinerary.getDepartureAt(),
+                TrainResponse.from(itinerary.getReturnTrain()),
                 itinerary.getPreferences(),
                 itinerary.getPlaces().stream()
                         .map(place -> new PlaceResponse(
@@ -102,4 +107,26 @@ public record ItineraryResponse(
             Boolean scheduled) {}
 
     public record TimelineResponse(String type, String description, LocalDateTime startsAt, LocalDateTime endsAt) {}
+
+    @Schema(description = "일정에서 선택한 열차")
+    public record TrainResponse(
+            String trainNumber,
+            String trainType,
+            String departureStation,
+            LocalDateTime departureAt,
+            String arrivalStation,
+            LocalDateTime arrivalAt) {
+
+        private static TrainResponse from(ItineraryTrain train) {
+            return train == null
+                    ? null
+                    : new TrainResponse(
+                            train.getTrainNumber(),
+                            train.getTrainType(),
+                            train.getDepartureStation(),
+                            train.getDepartureAt(),
+                            train.getArrivalStation(),
+                            train.getArrivalAt());
+        }
+    }
 }

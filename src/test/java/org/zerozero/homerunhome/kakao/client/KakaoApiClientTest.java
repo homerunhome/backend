@@ -36,6 +36,7 @@ import org.zerozero.homerunhome.kakao.dto.request.KakaoPlaceSearchRequest;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoPlaceSearchSort;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoRouteRequest;
 import org.zerozero.homerunhome.kakao.dto.response.KakaoRoute;
+import org.zerozero.homerunhome.kakao.dto.response.KakaoTravelRoute;
 
 class KakaoApiClientTest {
 
@@ -321,7 +322,9 @@ class KakaoApiClientTest {
                         """,
                         MediaType.APPLICATION_JSON));
 
-        assertEquals(Duration.ofSeconds(3914), client.findWalkingTime(new KakaoRouteRequest(origin, destination)));
+        assertEquals(
+                new KakaoTravelRoute(4025, Duration.ofSeconds(3914)),
+                client.findWalkingRoute(new KakaoRouteRequest(origin, destination)));
         localServer.verify();
     }
 
@@ -348,7 +351,8 @@ class KakaoApiClientTest {
                         MediaType.APPLICATION_JSON));
 
         assertEquals(
-                Duration.ofSeconds(1800), client.findPublicTransitTime(new KakaoRouteRequest(origin, destination)));
+                new KakaoTravelRoute(4000, Duration.ofSeconds(1800)),
+                client.findPublicTransitRoute(new KakaoRouteRequest(origin, destination)));
         localServer.verify();
     }
 

@@ -15,11 +15,15 @@ import org.zerozero.homerunhome.game.repository.GameRepository;
 import org.zerozero.homerunhome.itinerary.domain.Itinerary;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryPlace;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryTimelineEntry;
+import org.zerozero.homerunhome.itinerary.domain.ItineraryTrain;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryAutoPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlacesEditRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryResponse;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryTrainRequest;
 import org.zerozero.homerunhome.itinerary.repository.ItineraryRepository;
+import org.zerozero.homerunhome.travel.dto.TravelMode;
 
 @Service
 @Transactional(readOnly = true)
@@ -33,6 +37,7 @@ public class ItineraryService {
 
     private final ItineraryRepository itineraryRepository;
     private final GameRepository gameRepository;
+    private final ItineraryRouteOptimizer itineraryRouteOptimizer;
 
     @Transactional
     public ItineraryResponse create(ItineraryRequest request) {
@@ -42,8 +47,10 @@ public class ItineraryService {
                 .game(game)
                 .arrivalPlace(request.arrivalPlace())
                 .arrivalAt(request.arrivalAt())
+                .arrivalTrain(train(request.arrivalTrain()))
                 .departurePlace(request.departurePlace())
                 .departureAt(request.departureAt())
+                .returnTrain(train(request.returnTrain()))
                 .preferences(preferences(request))
                 .places(places(request))
                 .travelMode(request.travelMode())
@@ -123,9 +130,12 @@ public class ItineraryService {
                 .game(game)
                 .arrivalPlace(request.arrivalPlace())
                 .arrivalAt(request.arrivalAt())
+                .arrivalTrain(train(request.arrivalTrain()))
                 .departurePlace(request.departurePlace())
                 .departureAt(request.departureAt())
-                .preferences(List.of())
+                .returnTrain(train(request.returnTrain()))
+                .travelMode(request.travelMode() == null ? null : request.travelMode().name())
+                .preferences(request.preferences() == null ? List.of() : request.preferences())
                 .places(places)
                 .stadiumEntryBufferMinutes(request.stadiumEntryBufferMinutes())
                 .stadiumArrivalAt(stadiumArrivalAt)
@@ -141,6 +151,52 @@ public class ItineraryService {
     }
 
     @Transactional
+    public ItineraryResponse generateOptimized(ItineraryAutoPlanRequest request) {
+        if (request.travelMode() == TravelMode.BICYCLE) {
+            throw new BusinessException(ErrorCode.UNSUPPORTED_TRAVEL_MODE);
+        }
+        ItineraryRouteOptimizer.OptimizedRoute route = itineraryRouteOptimizer.optimize(
+                request.places(), request.travelTimes());
+        List<ItineraryAutoPlanRequest.PlaceCandidate> candidates = request.places() == null
+                ? List.of()
+                : request.places();
+        java.util.Map<String, ItineraryAutoPlanRequest.PlaceCandidate> candidatesById = candidates.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        ItineraryAutoPlanRequest.PlaceCandidate::placeId, candidate -> candidate));
+        List<ItineraryPlanRequest.PlacePlanRequest> orderedPlaces = new ArrayList<>();
+        for (int index = 0; index < route.placeIds().size(); index++) {
+            ItineraryAutoPlanRequest.PlaceCandidate candidate = candidatesById.get(route.placeIds().get(index));
+            orderedPlaces.add(new ItineraryPlanRequest.PlacePlanRequest(
+                    candidate.placeId(),
+                    candidate.name(),
+                    candidate.address(),
+                    candidate.latitude(),
+                    candidate.longitude(),
+                    route.travelMinutes().get(index),
+                    candidate.stayDurationMinutes(),
+                    candidate.mustVisit()));
+        }
+
+        return generate(new ItineraryPlanRequest(
+                request.gameId(),
+                request.arrivalPlace(),
+                request.arrivalAt(),
+                request.arrivalTrain(),
+                request.departurePlace(),
+                request.departureAt(),
+                request.returnTrain(),
+                request.stadiumEntryBufferMinutes(),
+                route.finalLegMinutes(),
+                request.stadiumToDepartureMinutes(),
+                request.postGameCrowdBufferMinutes(),
+                request.boardingBufferMinutes(),
+                request.expectedGameDurationMinutes(),
+                request.preferences(),
+                request.travelMode(),
+                orderedPlaces));
+    }
+
+    @Transactional
     public ItineraryResponse update(Long id, ItineraryRequest request) {
         Itinerary itinerary = itineraryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ITINERARY_NOT_FOUND));
@@ -150,8 +206,10 @@ public class ItineraryService {
                 game,
                 request.arrivalPlace(),
                 request.arrivalAt(),
+                train(request.arrivalTrain()),
                 request.departurePlace(),
                 request.departureAt(),
+                train(request.returnTrain()),
                 preferences(request),
                 places(request),
                 request.travelMode(),
@@ -242,6 +300,18 @@ public class ItineraryService {
 
     private List<String> preferences(ItineraryRequest request) {
         return request.preferences() == null ? List.of() : request.preferences();
+    }
+
+    private ItineraryTrain train(ItineraryTrainRequest request) {
+        return request == null
+                ? null
+                : new ItineraryTrain(
+                        request.trainNumber(),
+                        request.trainType(),
+                        request.departureStation(),
+                        request.departureAt(),
+                        request.arrivalStation(),
+                        request.arrivalAt());
     }
 
     private List<ItineraryPlace> places(ItineraryRequest request) {

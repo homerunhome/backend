@@ -18,10 +18,12 @@ public record ItineraryRequest(
         @NotBlank @Size(max = 200) String arrivalPlace,
         @Schema(description = "도착 일시", example = "2026-09-20T12:00:00")
         @NotNull LocalDateTime arrivalAt,
+        @Valid ItineraryTrainRequest arrivalTrain,
         @Schema(description = "출발 장소", example = "서울역")
         @NotBlank @Size(max = 200) String departurePlace,
         @Schema(description = "출발 일시", example = "2026-09-20T23:30:00")
         @NotNull LocalDateTime departureAt,
+        @Valid ItineraryTrainRequest returnTrain,
         @Schema(description = "선택한 관광 성향", example = "[\"FOOD\", \"CAFE\"]")
         @Size(max = 10) List<@NotBlank @Size(max = 50) String> preferences,
         @Schema(description = "일정 내 장소 목록. 전달한 배열 순서대로 저장됩니다.")

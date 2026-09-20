@@ -17,6 +17,7 @@ import org.zerozero.homerunhome.kakao.client.KakaoApiClient;
 import org.zerozero.homerunhome.kakao.dto.common.KakaoCoordinate;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoRouteRequest;
 import org.zerozero.homerunhome.kakao.dto.response.KakaoRoute;
+import org.zerozero.homerunhome.kakao.dto.response.KakaoTravelRoute;
 import org.zerozero.homerunhome.travel.dto.TravelCoordinate;
 import org.zerozero.homerunhome.travel.dto.TravelMode;
 import org.zerozero.homerunhome.travel.dto.TravelTimeRequest;
@@ -58,11 +59,51 @@ class TravelTimeServiceTest {
     }
 
     @Test
-    void rejectsUnsupportedTravelModeWithoutCallingKakao() {
+    void returnsPublicTransitDurationAndDistance() {
+        KakaoRouteRequest kakaoRequest = new KakaoRouteRequest(
+                new KakaoCoordinate(new BigDecimal("127.0719"), new BigDecimal("37.5121")),
+                new KakaoCoordinate(new BigDecimal("127.0276"), new BigDecimal("37.4982")));
+        when(kakaoApiClient.findPublicTransitRoute(kakaoRequest))
+                .thenReturn(new KakaoTravelRoute(5013, Duration.ofSeconds(2115)));
         TravelTimeRequest request = new TravelTimeRequest(
                 coordinate("37.5121", "127.0719"),
                 coordinate("37.4982", "127.0276"),
                 TravelMode.PUBLIC_TRANSIT);
+
+        var response = service.findTravelTime(request);
+
+        assertEquals(TravelMode.PUBLIC_TRANSIT, response.transportMode());
+        assertEquals(2115, response.durationSeconds());
+        assertEquals(5013, response.distanceMeters());
+        verify(kakaoApiClient).findPublicTransitRoute(kakaoRequest);
+        verify(kakaoApiClient, never()).findDrivingRoute(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void returnsWalkingDurationAndDistance() {
+        KakaoRouteRequest kakaoRequest = new KakaoRouteRequest(
+                new KakaoCoordinate(new BigDecimal("127.0719"), new BigDecimal("37.5121")),
+                new KakaoCoordinate(new BigDecimal("127.0276"), new BigDecimal("37.4982")));
+        when(kakaoApiClient.findWalkingRoute(kakaoRequest))
+                .thenReturn(new KakaoTravelRoute(4025, Duration.ofSeconds(3914)));
+
+        var response = service.findTravelTime(new TravelTimeRequest(
+                coordinate("37.5121", "127.0719"),
+                coordinate("37.4982", "127.0276"),
+                TravelMode.WALK));
+
+        assertEquals(TravelMode.WALK, response.transportMode());
+        assertEquals(3914, response.durationSeconds());
+        assertEquals(4025, response.distanceMeters());
+        verify(kakaoApiClient).findWalkingRoute(kakaoRequest);
+    }
+
+    @Test
+    void rejectsUnsupportedTravelModeWithoutCallingKakao() {
+        TravelTimeRequest request = new TravelTimeRequest(
+                coordinate("37.5121", "127.0719"),
+                coordinate("37.4982", "127.0276"),
+                TravelMode.BICYCLE);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,

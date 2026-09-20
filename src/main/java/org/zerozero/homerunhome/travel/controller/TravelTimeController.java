@@ -23,7 +23,7 @@ public class TravelTimeController {
     private final TravelTimeService travelTimeService;
 
     @PostMapping
-    @Operation(summary = "장소 간 이동시간 조회", description = "현재 자동차 이동만 지원합니다.")
+    @Operation(summary = "장소 간 이동시간 조회", description = "자동차, 도보, 대중교통 경로를 지원합니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "이동시간 조회 성공"),
         @ApiResponse(

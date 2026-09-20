@@ -1,17 +1,17 @@
 # 장소 간 이동시간 조회 API
 
-출발지와 도착지의 WGS84 좌표를 받아 이동시간과 거리를 반환합니다. 현재 일반 공개 API로 사용할 수 있는 카카오모빌리티 자동차 길찾기만 지원합니다.
+출발지와 도착지의 WGS84 좌표를 받아 이동시간과 거리를 반환합니다. 자동차는 카카오모빌리티 길찾기, 도보와 대중교통은 카카오맵 REST API를 사용합니다.
 
 ## 지원 이동수단
 
 | 요청 값 | 지원 여부 | 기준 |
 | --- | --- | --- |
 | `CAR` | 지원 | 카카오모빌리티 자동차 길찾기 API |
-| `WALK` | 미지원 | 카카오모빌리티 제휴 계약 필요 |
+| `WALK` | 지원 | 카카오맵 도보 경로 조회 |
 | `BICYCLE` | 미지원 | 카카오모빌리티 제휴 계약 필요 |
-| `PUBLIC_TRANSIT` | 미지원 | 카카오모빌리티 제휴 계약 필요 |
+| `PUBLIC_TRANSIT` | 지원 | 카카오맵 대중교통 경로 조회 |
 
-미지원 이동수단은 임의 계산값을 반환하지 않고 `UNSUPPORTED_TRAVEL_MODE` 오류로 처리합니다.
+미지원 이동수단은 임의 계산값을 반환하지 않고 `UNSUPPORTED_TRAVEL_MODE` 오류로 처리합니다. 대중교통 응답은 카카오가 반환한 경로 중 총 소요시간이 가장 짧은 경로 하나를 기준으로 합니다.
 
 ## API 호출 방법
 
@@ -20,7 +20,7 @@ POST /api/travel-times
 Content-Type: application/json
 ```
 
-잠실야구장에서 서울역까지 자동차 이동시간을 조회하는 예시는 다음과 같습니다.
+장소 간 이동시간 조회 요청 예시는 다음과 같습니다. `transportMode`는 `CAR`, `WALK`, `PUBLIC_TRANSIT` 중 선택합니다.
 
 ```json
 {
@@ -54,7 +54,7 @@ Content-Type: application/json
 | 상황 | HTTP 상태 | 오류 코드 |
 | --- | --- | --- |
 | 좌표 누락 또는 WGS84 범위 오류 | 400 | `INVALID_TRAVEL_TIME_REQUEST` |
-| 도보·자전거·대중교통 요청 | 400 | `UNSUPPORTED_TRAVEL_MODE` |
+| 자전거 요청 | 400 | `UNSUPPORTED_TRAVEL_MODE` |
 | 경로를 찾을 수 없음 | 404 | `ROUTE_NOT_FOUND` |
 | 카카오 인증·권한 실패 | 502 | `KAKAO_AUTHENTICATION_FAILED` |
 | 카카오 호출 한도 초과 | 429 | `KAKAO_QUOTA_EXCEEDED` |
@@ -62,7 +62,7 @@ Content-Type: application/json
 
 ## 실제 API 검증
 
-`KAKAO_REST_API_KEY`를 설정하면 잠실야구장과 서울역 사이의 실제 자동차 경로를 검증하는 테스트가 실행됩니다.
+`KAKAO_REST_API_KEY`를 설정하면 잠실야구장과 서울역 사이의 실제 자동차 경로를 검증하는 테스트가 실행됩니다. 도보·대중교통은 카카오맵 REST API를 사용합니다.
 
 ```bash
 KAKAO_REST_API_KEY=발급받은_REST_API_키 ./gradlew test \
@@ -74,5 +74,6 @@ KAKAO_REST_API_KEY=발급받은_REST_API_키 ./gradlew test \
 ## 공식 문서
 
 - [카카오모빌리티 자동차 길찾기 API](https://developers.kakaomobility.com/guide/navi-api/directions)
+- [카카오맵 대중교통 경로 조회 API](https://developers.kakao.com/docs/ko/kakaomap/rest-api#경로-조회_대중교통-경로-조회)
 - [카카오모빌리티 길찾기 결과 코드](https://developers.kakaomobility.com/guide/navi-api/reference.html)
 - [카카오모빌리티 제휴 API](https://developers.kakaomobility.com/affiliate/)

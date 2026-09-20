@@ -1,6 +1,8 @@
 package org.zerozero.homerunhome.game;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -9,6 +11,7 @@ import java.time.LocalTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -64,9 +67,56 @@ class GameApiIntegrationTests {
     }
 
     @Test
+    void registersAndReadsGameSchedule() throws Exception {
+        mockMvc.perform(post("/api/games")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-22-001",
+                                  "city":"대전",
+                                  "gameDate":"2026-09-22",
+                                  "gameStartTime":"18:30:00",
+                                  "stadium":"대전 한화생명 볼파크",
+                                  "homeTeam":"한화 이글스",
+                                  "awayTeam":"롯데 자이언츠"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/games/game-2026-09-22-001"))
+                .andExpect(jsonPath("$.gameId").value("game-2026-09-22-001"));
+
+        mockMvc.perform(get("/api/games/{gameId}", "game-2026-09-22-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.city").value("대전"))
+                .andExpect(jsonPath("$.gameDate").value("2026-09-22"))
+                .andExpect(jsonPath("$.awayTeam").value("롯데 자이언츠"));
+    }
+
+    @Test
+    void rejectsDuplicateGameId() throws Exception {
+        mockMvc.perform(post("/api/games")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "city":"대전",
+                                  "gameDate":"2026-09-20",
+                                  "gameStartTime":"18:30:00",
+                                  "stadium":"대전 한화생명 볼파크",
+                                  "homeTeam":"한화 이글스",
+                                  "awayTeam":"롯데 자이언츠"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("GAME_ALREADY_EXISTS"));
+    }
+
+    @Test
     void exposesGameListInOpenApiDocument() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paths['/api/games'].get").exists());
+                .andExpect(jsonPath("$.paths['/api/games'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/games'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/games/{gameId}'].get").exists());
     }
 }

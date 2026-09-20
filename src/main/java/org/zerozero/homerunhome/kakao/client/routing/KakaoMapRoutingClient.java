@@ -11,6 +11,7 @@ import org.zerozero.homerunhome.common.ErrorCode;
 import org.zerozero.homerunhome.kakao.client.support.KakaoClientExecutor;
 import org.zerozero.homerunhome.kakao.dto.common.KakaoCoordinate;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoRouteRequest;
+import org.zerozero.homerunhome.kakao.dto.response.KakaoTravelRoute;
 
 @Component
 public class KakaoMapRoutingClient {
@@ -24,7 +25,7 @@ public class KakaoMapRoutingClient {
         this.executor = executor;
     }
 
-    public Duration findWalkingTime(KakaoRouteRequest request) {
+    public KakaoTravelRoute findWalkingRoute(KakaoRouteRequest request) {
         return executor.execute("walkingRoute", () -> {
             KakaoWalkingRouteResponse response = restClient.get()
                     .uri(uriBuilder -> uriBuilder.path("/v2/routing/walk")
@@ -39,15 +40,19 @@ public class KakaoMapRoutingClient {
                     || !"OK".equals(response.status())
                     || response.route() == null
                     || response.route().properties() == null
+                    || response.route().properties().totalDistance() == null
+                    || response.route().properties().totalDistance() < 0
                     || response.route().properties().totalTime() == null
                     || response.route().properties().totalTime() < 0) {
                 throw new BusinessException(ErrorCode.ROUTE_NOT_FOUND);
             }
-            return Duration.ofSeconds(response.route().properties().totalTime());
+            return new KakaoTravelRoute(
+                    response.route().properties().totalDistance(),
+                    Duration.ofSeconds(response.route().properties().totalTime()));
         });
     }
 
-    public Duration findPublicTransitTime(KakaoRouteRequest request) {
+    public KakaoTravelRoute findPublicTransitRoute(KakaoRouteRequest request) {
         return executor.execute("publicTransitRoute", () -> {
             KakaoPublicTransitResponse response = restClient.get()
                     .uri(uriBuilder -> uriBuilder.path("/v2/routing/publictraffic")
@@ -65,11 +70,11 @@ public class KakaoMapRoutingClient {
                     .filter(Objects::nonNull)
                     .map(KakaoPublicTransitResponse.Route::properties)
                     .filter(Objects::nonNull)
-                    .map(KakaoPublicTransitResponse.RouteProperties::totalTime)
-                    .filter(Objects::nonNull)
-                    .filter(time -> time >= 0)
-                    .min(Comparator.naturalOrder())
-                    .map(Duration::ofSeconds)
+                    .filter(route -> route.totalTime() != null && route.totalTime() >= 0)
+                    .filter(route -> route.totalDistance() != null && route.totalDistance() >= 0)
+                    .min(Comparator.comparing(KakaoPublicTransitResponse.RouteProperties::totalTime))
+                    .map(route -> new KakaoTravelRoute(
+                            route.totalDistance(), Duration.ofSeconds(route.totalTime())))
                     .orElseThrow(() -> new BusinessException(ErrorCode.ROUTE_NOT_FOUND));
         });
     }
