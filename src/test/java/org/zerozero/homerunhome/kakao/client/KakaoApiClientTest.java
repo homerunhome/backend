@@ -221,6 +221,29 @@ class KakaoApiClientTest {
     }
 
     @Test
+    void distinguishesRouteNotFoundFromExternalApiFailure() {
+        mobilityServer.expect(requestTo(Matchers.containsString("/v1/directions")))
+                .andRespond(withSuccess(
+                        """
+                        {
+                          "routes":[{
+                            "result_code":1,
+                            "result_msg":"길찾기 결과를 찾을 수 없음"
+                          }]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON));
+        KakaoCoordinate coordinate = new KakaoCoordinate(BigDecimal.ZERO, BigDecimal.ZERO);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> client.findDrivingRoute(new KakaoRouteRequest(coordinate, coordinate)));
+
+        assertEquals(ErrorCode.ROUTE_NOT_FOUND, exception.getErrorCode());
+        mobilityServer.verify();
+    }
+
+    @Test
     void distinguishesAuthenticationFailure() {
         localServer.expect(requestTo(Matchers.any(String.class)))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED));

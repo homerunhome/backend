@@ -88,6 +88,7 @@ KakaoPlaceSearchRequest request = new KakaoPlaceSearchRequest(
 | 인증·권한 실패(401, 403) | `KAKAO_AUTHENTICATION_FAILED` |
 | 호출 한도 초과(429) | `KAKAO_QUOTA_EXCEEDED` |
 | 카카오 서버 오류(5xx) | `KAKAO_EXTERNAL_SERVER_ERROR` |
+| 자동차 경로 탐색 결과 없음 | `ROUTE_NOT_FOUND` |
 | 그 밖의 잘못된 응답·통신 오류 | `KAKAO_API_REQUEST_FAILED` |
 
 로그에는 작업 이름과 HTTP 상태만 남기며 REST API 키와 카카오 응답 본문은 기록하지 않습니다.
