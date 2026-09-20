@@ -17,6 +17,7 @@ public record TourismContentDetailResponse(
         String imageUrl,
         String thumbnailUrl,
         List<TourismImageResponse> images,
+        TourismUsageInformationResponse usageInformation,
         TourismAccessibilityResponse accessibility) {
 
     public TourismContentDetailResponse {

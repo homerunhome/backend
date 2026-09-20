@@ -14,12 +14,14 @@ import org.zerozero.homerunhome.tourapi.client.KoreanTourApiClient;
 import org.zerozero.homerunhome.tourapi.dto.TourApiAccessibility;
 import org.zerozero.homerunhome.tourapi.dto.TourApiContent;
 import org.zerozero.homerunhome.tourapi.dto.TourApiImage;
+import org.zerozero.homerunhome.tourapi.dto.TourApiIntro;
 import org.zerozero.homerunhome.tourism.dto.TourismAccessibilityResponse;
 import org.zerozero.homerunhome.tourism.dto.TourismContentDetailResponse;
 import org.zerozero.homerunhome.tourism.dto.TourismContentListResponse;
 import org.zerozero.homerunhome.tourism.dto.TourismContentSummaryResponse;
 import org.zerozero.homerunhome.tourism.dto.TourismContentType;
 import org.zerozero.homerunhome.tourism.dto.TourismImageResponse;
+import org.zerozero.homerunhome.tourism.dto.TourismUsageInformationResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +58,13 @@ public class TourismContentService {
         List<TourismImageResponse> images = koreanTourApiClient.findImages(contentId).stream()
                 .map(this::toImage)
                 .toList();
+        TourismUsageInformationResponse usageInformation = content.contentTypeId() == null
+                        || content.contentTypeId().isBlank()
+                ? null
+                : koreanTourApiClient
+                        .findIntro(contentId, content.contentTypeId())
+                        .map(this::toUsageInformation)
+                        .orElse(null);
         TourismAccessibilityResponse accessibility = barrierFreeTourApiClient
                 .findDetail(contentId)
                 .map(this::toAccessibility)
@@ -74,6 +83,7 @@ public class TourismContentService {
                 content.imageUrl(),
                 content.thumbnailUrl(),
                 images,
+                usageInformation,
                 accessibility);
     }
 
@@ -94,6 +104,17 @@ public class TourismContentService {
     private TourismImageResponse toImage(TourApiImage image) {
         return new TourismImageResponse(
                 image.name(), image.originalUrl(), image.thumbnailUrl(), image.copyrightType());
+    }
+
+    private TourismUsageInformationResponse toUsageInformation(TourApiIntro intro) {
+        return new TourismUsageInformationResponse(
+                plainText(intro.useTime()),
+                plainText(intro.restDate()),
+                plainText(intro.useFee()),
+                plainText(intro.parking()),
+                plainText(intro.duration()),
+                plainText(intro.eventPlace()),
+                plainText(intro.bookingPlace()));
     }
 
     private TourismAccessibilityResponse toAccessibility(TourApiAccessibility info) {

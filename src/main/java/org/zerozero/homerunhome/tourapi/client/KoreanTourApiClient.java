@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.zerozero.homerunhome.tourapi.dto.TourApiContent;
 import org.zerozero.homerunhome.tourapi.dto.TourApiImage;
+import org.zerozero.homerunhome.tourapi.dto.TourApiIntro;
 
 @Component
 public class KoreanTourApiClient {
@@ -83,6 +84,14 @@ public class KoreanTourApiClient {
                 .toList();
     }
 
+    public Optional<TourApiIntro> findIntro(String contentId, String contentTypeId) {
+        Map<String, Object> parameters = Map.of(
+                "contentId", contentId,
+                "contentTypeId", contentTypeId);
+        TourApiPage response = executor.execute(restClient, "detailIntro2", parameters, 1, 1);
+        return response.items().stream().findFirst().map(this::toIntro);
+    }
+
     public TourApiPageResult<TourApiContent> findDaejeonEvents(
             LocalDate startDate, LocalDate endDate, int page, int size) {
         Map<String, Object> parameters = new LinkedHashMap<>();
@@ -118,6 +127,27 @@ public class KoreanTourApiClient {
                 text(fields, "originimgurl"),
                 text(fields, "smallimageurl"),
                 text(fields, "cpyrhtDivCd"));
+    }
+
+    private TourApiIntro toIntro(Map<String, Object> fields) {
+        return new TourApiIntro(
+                firstText(fields, "usetime", "usetimeculture", "playtime"),
+                firstText(fields, "restdate", "restdateculture"),
+                firstText(fields, "usefee", "usetimefestival"),
+                firstText(fields, "parking", "parkingculture", "parkingfee"),
+                firstText(fields, "spendtime", "spendtimefestival"),
+                text(fields, "eventplace"),
+                text(fields, "bookingplace"));
+    }
+
+    private String firstText(Map<String, Object> fields, String... names) {
+        for (String name : names) {
+            String value = text(fields, name);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private <T> TourApiPageResult<T> mapPage(
