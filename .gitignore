@@ -36,7 +36,9 @@ out/
 ### VS Code ###
 .vscode/
 
-.env
-app.env
+# Environment files stay local or on EC2, including examples and variants.
+.env*
+*.env
+*.env.*
 *.pem
 __pycache__/

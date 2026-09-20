@@ -40,26 +40,29 @@ MySQL은 같은 EC2에서 로컬 접속만 허용하고, 보안 그룹에서 330
 MySQL 관리 도구로 `127.0.0.1` TCP 접속과 해당 계정의 DB 접근을 먼저 확인합니다.
 앱은 8080을 사용하므로 기존 수동 실행 앱이 있다면 해당 프로세스를 확인하고 중지합니다.
 
-**Mac의 backend 저장소 루트**에서 서비스 설정 파일을 보냅니다.
+**Mac의 backend 저장소 루트**에서 서비스 등록 스크립트만 보냅니다.
 `EC2_USER`는 위에서 확인한 실제 계정으로 수정합니다. 키 경로도 실제 위치로 지정합니다.
 
 ```bash
 EC2_USER=ec2-user
 EC2_IP=54.234.199.79
 KEY_FILE=/absolute/path/to/key-homerunhome.pem
-scp -i "$KEY_FILE" scripts/install-service.sh deploy/app.env.example "$EC2_USER@$EC2_IP:~/"
+scp -i "$KEY_FILE" scripts/install-service.sh "$EC2_USER@$EC2_IP:~/"
 ```
 
-**EC2 터미널**에서 환경 파일을 준비합니다. 기존 파일이 있으면 덮어쓰지 않습니다.
+**EC2 터미널**에서 환경 파일을 직접 작성합니다. 환경 파일은 예제까지 Git 추적 대상에서 제외하며,
+저장소에 추가하거나 Actions 산출물로 전송하지 않습니다. 기존 파일이 있으면 덮어쓰지 않습니다.
 
 ```bash
 mkdir -p ~/homerunhome
-test -f ~/homerunhome/app.env || (umask 077; cp ~/app.env.example ~/homerunhome/app.env)
+test -f ~/homerunhome/app.env || (umask 077; touch ~/homerunhome/app.env)
 chmod 600 ~/homerunhome/app.env
 vi ~/homerunhome/app.env
 ```
 
-`DB_PASSWORD`를 실제 앱 DB 계정 비밀번호로 수정합니다.
+각 항목을 `이름=값` 형식으로 작성합니다. `DB_URL`은 서버의 MySQL JDBC 주소,
+`DB_USERNAME`과 `DB_PASSWORD`는 실제 앱 DB 계정 정보입니다.
+`JPA_DDL_AUTO`는 현재 개발 환경에서 `update`로 설정합니다.
 `TAGO_SERVICE_KEY`는 열차 API 호출 시 필요합니다. 환경 파일은 systemd 형식이며 `export`를 넣지 않습니다.
 `SERVER_PORT=8080`은 배포 후 검사 주소와 같게 유지합니다.
 

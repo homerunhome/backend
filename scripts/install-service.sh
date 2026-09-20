@@ -22,7 +22,7 @@ fi
 umask 077
 mkdir -p "$app_root/releases"
 if [[ ! -f "$app_root/app.env" ]]; then
-  echo "Create $app_root/app.env using deploy/app.env.example first." >&2
+  echo "Create $app_root/app.env directly on EC2 first. See docs/deployment.md." >&2
   exit 1
 fi
 chmod 600 "$app_root/app.env"
