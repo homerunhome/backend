@@ -3,6 +3,7 @@ package org.zerozero.homerunhome.tourapi.client;
 import static org.zerozero.homerunhome.tourapi.client.TourApiFieldReader.decimal;
 import static org.zerozero.homerunhome.tourapi.client.TourApiFieldReader.text;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -38,6 +39,23 @@ public class KoreanTourApiClient {
         parameters.put("contentTypeId", contentTypeId);
         parameters.put("arrange", "A");
         TourApiPage response = executor.execute(restClient, "areaBasedList2", parameters, page, size);
+        return mapPage(response, this::toContent);
+    }
+
+    public TourApiPageResult<TourApiContent> findNearbyContents(
+            String contentTypeId,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            int radiusMeters,
+            int page,
+            int size) {
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("mapX", longitude);
+        parameters.put("mapY", latitude);
+        parameters.put("radius", radiusMeters);
+        parameters.put("contentTypeId", contentTypeId);
+        parameters.put("arrange", "E");
+        TourApiPage response = executor.execute(restClient, "locationBasedList2", parameters, page, size);
         return mapPage(response, this::toContent);
     }
 
