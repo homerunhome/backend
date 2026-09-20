@@ -46,6 +46,7 @@ public record ItineraryRequest(
             BigDecimal latitude,
             @Schema(description = "경도", example = "127.4270")
             BigDecimal longitude,
+            @Min(0) Long travelFromPreviousMinutes,
             LocalDateTime arrivesAt,
             LocalDateTime departsAt,
             @Min(0) Long stayDurationMinutes,

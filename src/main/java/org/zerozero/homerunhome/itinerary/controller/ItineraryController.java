@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.zerozero.homerunhome.common.ApiErrorResponse;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryPlacesEditRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryResponse;
 import org.zerozero.homerunhome.itinerary.service.ItineraryService;
@@ -65,6 +66,16 @@ public class ItineraryController {
             @Parameter(description = "자동 증가 일정 ID", example = "1") @PathVariable Long id,
             @Valid @RequestBody ItineraryRequest request) {
         return itineraryService.update(id, request);
+    }
+
+    @PutMapping("/{id}/places")
+    @Operation(
+            summary = "저장된 일정의 장소 편집",
+            description = "장소 전체 목록을 요청 순서로 교체하고 장소별 이동·체류시간을 반영해 일정을 다시 계산합니다.")
+    public ItineraryResponse updatePlaces(
+            @Parameter(description = "자동 증가 일정 ID", example = "1") @PathVariable Long id,
+            @Valid @RequestBody ItineraryPlacesEditRequest request) {
+        return itineraryService.updatePlaces(id, request);
     }
 
     @GetMapping("/{id}")

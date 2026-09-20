@@ -31,6 +31,7 @@ public record ItineraryResponse(
         LocalDateTime stadiumArrivalAt,
         Long gameStartSlackMinutes,
         LocalDateTime stadiumDepartureRecommendedAt,
+        Boolean returnTransportBoardable,
         LocalDateTime expectedGameEndAt,
         Boolean gameEndMayBeDelayed,
         String status,
@@ -60,6 +61,7 @@ public record ItineraryResponse(
                                 place.getAddress(),
                                 place.getLatitude(),
                                 place.getLongitude(),
+                                place.getTravelFromPreviousMinutes(),
                                 place.getArrivesAt(),
                                 place.getDepartsAt(),
                                 place.getStayDurationMinutes(),
@@ -71,6 +73,9 @@ public record ItineraryResponse(
                 itinerary.getStadiumArrivalAt(),
                 itinerary.getGameStartSlackMinutes(),
                 itinerary.getStadiumDepartureRecommendedAt(),
+                itinerary.getExpectedGameEndAt() == null || itinerary.getStadiumDepartureRecommendedAt() == null
+                        ? null
+                        : !itinerary.getExpectedGameEndAt().isAfter(itinerary.getStadiumDepartureRecommendedAt()),
                 itinerary.getExpectedGameEndAt(),
                 itinerary.getGameEndMayBeDelayed(),
                 itinerary.getPlanStatus(),
@@ -89,6 +94,7 @@ public record ItineraryResponse(
             String address,
             BigDecimal latitude,
             BigDecimal longitude,
+            Long travelFromPreviousMinutes,
             LocalDateTime arrivesAt,
             LocalDateTime departsAt,
             Long stayDurationMinutes,

@@ -236,6 +236,158 @@ class ItineraryApiIntegrationTests {
     }
 
     @Test
+    void editsOrderedPlacesAndRecalculatesTimelineAndReturnFeasibility() throws Exception {
+        String location = mockMvc.perform(post("/api/itineraries/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "arrivalPlace":"대전역",
+                                  "arrivalAt":"2026-09-20T12:00:00",
+                                  "departurePlace":"대전역",
+                                  "departureAt":"2026-09-21T00:30:00",
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":10,
+                                  "stadiumToDepartureMinutes":45,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[
+                                    {"placeId":"old-place-1","name":"기존 장소 1","travelFromPreviousMinutes":5,"stayDurationMinutes":10},
+                                    {"placeId":"old-place-2","name":"기존 장소 2","travelFromPreviousMinutes":5,"stayDurationMinutes":10}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getHeader("Location");
+        String id = location.substring(location.lastIndexOf('/') + 1);
+
+        mockMvc.perform(put("/api/itineraries/{id}/places", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":10,
+                                  "stadiumToDepartureMinutes":45,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[
+                                    {"placeId":"place-b","name":"두 번째 후보를 앞으로 이동","latitude":36.35,"longitude":127.38,"travelFromPreviousMinutes":10,"stayDurationMinutes":30},
+                                    {"placeId":"place-a","name":"추가한 후보","latitude":36.36,"longitude":127.39,"travelFromPreviousMinutes":20,"stayDurationMinutes":60,"mustVisit":true}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(2))
+                .andExpect(jsonPath("$.places[0].placeId").value("place-b"))
+                .andExpect(jsonPath("$.places[0].travelFromPreviousMinutes").value(10))
+                .andExpect(jsonPath("$.places[0].arrivesAt").value("2026-09-20T12:10:00"))
+                .andExpect(jsonPath("$.places[1].placeId").value("place-a"))
+                .andExpect(jsonPath("$.places[1].arrivesAt").value("2026-09-20T13:00:00"))
+                .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T14:10:00"))
+                .andExpect(jsonPath("$.gameStartSlackMinutes").value(260))
+                .andExpect(jsonPath("$.stadiumDepartureRecommendedAt").value("2026-09-20T23:00:00"))
+                .andExpect(jsonPath("$.returnTransportBoardable").value(true))
+                .andExpect(jsonPath("$.status").value("AMPLE"));
+
+        mockMvc.perform(get("/api/itineraries/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places[0].travelFromPreviousMinutes").value(10))
+                .andExpect(jsonPath("$.places[0].name").value("두 번째 후보를 앞으로 이동"));
+    }
+
+    @Test
+    void retainsAnInfeasibleEditAndExplainsLateArrivalAndMissedReturn() throws Exception {
+        String location = mockMvc.perform(post("/api/itineraries/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "arrivalPlace":"대전역",
+                                  "arrivalAt":"2026-09-20T17:40:00",
+                                  "departurePlace":"대전역",
+                                  "departureAt":"2026-09-20T22:00:00",
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":10,
+                                  "stadiumToDepartureMinutes":60,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getHeader("Location");
+        String id = location.substring(location.lastIndexOf('/') + 1);
+
+        mockMvc.perform(put("/api/itineraries/{id}/places", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":10,
+                                  "stadiumToDepartureMinutes":60,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[
+                                    {"placeId":"late-place","name":"늦은 방문지","latitude":36.35,"longitude":127.38,"travelFromPreviousMinutes":20,"stayDurationMinutes":50}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T19:00:00"))
+                .andExpect(jsonPath("$.returnTransportBoardable").value(false))
+                .andExpect(jsonPath("$.status").value("RETURN_CAUTION"))
+                .andExpect(jsonPath("$.warnings[1]").value("입장 여유시간 부족: 경기 지각 가능"))
+                .andExpect(jsonPath("$.warnings[2]").value(
+                        "예상 경기 종료 후 역 이동·혼잡·탑승 여유시간이 부족해 귀가편 탑승이 어렵습니다."));
+    }
+
+    @Test
+    void rejectsPlaceEditForUnknownItineraryId() throws Exception {
+        mockMvc.perform(put("/api/itineraries/{id}/places", 9223372036854775807L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":10,
+                                  "stadiumToDepartureMinutes":45,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[]
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ITINERARY_NOT_FOUND"));
+    }
+
+    @Test
+    void rejectsInvalidPlaceAndTimeValuesInEditRequest() throws Exception {
+        mockMvc.perform(put("/api/itineraries/{id}/places", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":10,
+                                  "stadiumToDepartureMinutes":45,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[
+                                    {"placeId":"","name":"잘못된 장소","latitude":91,"longitude":127,"travelFromPreviousMinutes":-1,"stayDurationMinutes":-5}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details['places[0].placeId']").exists())
+                .andExpect(jsonPath("$.details['places[0].latitude']").exists())
+                .andExpect(jsonPath("$.details['places[0].travelFromPreviousMinutes']").exists())
+                .andExpect(jsonPath("$.details['places[0].stayDurationMinutes']").exists());
+    }
+
+    @Test
     void rejectsInvalidDateFormat() throws Exception {
         mockMvc.perform(post("/api/itineraries")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -275,6 +427,7 @@ class ItineraryApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/itineraries'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/itineraries/{id}'].put").exists())
+                .andExpect(jsonPath("$.paths['/api/itineraries/{id}/places'].put").exists())
                 .andExpect(jsonPath("$.paths['/api/itineraries/{id}'].get").exists());
 
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());

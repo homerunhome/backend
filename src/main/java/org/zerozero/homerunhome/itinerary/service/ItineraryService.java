@@ -16,6 +16,7 @@ import org.zerozero.homerunhome.itinerary.domain.Itinerary;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryPlace;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryTimelineEntry;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryPlacesEditRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryResponse;
 import org.zerozero.homerunhome.itinerary.repository.ItineraryRepository;
@@ -93,6 +94,7 @@ public class ItineraryService {
                     place.address(),
                     place.latitude(),
                     place.longitude(),
+                    place.travelFromPreviousMinutes(),
                     arrivesAt,
                     departsAt,
                     place.stayDurationMinutes(),
@@ -162,6 +164,76 @@ public class ItineraryService {
         return ItineraryResponse.from(itinerary);
     }
 
+    @Transactional
+    public ItineraryResponse updatePlaces(Long id, ItineraryPlacesEditRequest request) {
+        Itinerary itinerary = itineraryRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ITINERARY_NOT_FOUND));
+        if (!itinerary.getDepartureAt().isAfter(itinerary.getArrivalAt())) {
+            throw new BusinessException(ErrorCode.INVALID_ITINERARY_PLAN_REQUEST);
+        }
+
+        Game game = itinerary.getGame();
+        LocalDateTime gameStartAt = LocalDateTime.of(game.getGameDate(), game.getGameStartTime());
+        LocalDateTime expectedGameEndAt = gameStartAt.plusMinutes(
+                request.expectedGameDurationMinutes() == null
+                        ? DEFAULT_EXPECTED_GAME_DURATION_MINUTES
+                        : request.expectedGameDurationMinutes());
+        LocalDateTime stadiumDepartureRecommendedAt = itinerary.getDepartureAt()
+                .minusMinutes(request.stadiumToDepartureMinutes())
+                .minusMinutes(request.postGameCrowdBufferMinutes())
+                .minusMinutes(request.boardingBufferMinutes());
+
+        List<ItineraryPlace> places = new ArrayList<>();
+        List<ItineraryTimelineEntry> timeline = new ArrayList<>();
+        LocalDateTime cursor = itinerary.getArrivalAt();
+        for (ItineraryPlacesEditRequest.PlaceEditRequest place : request.places()) {
+            LocalDateTime arrivesAt = cursor.plusMinutes(place.travelFromPreviousMinutes());
+            LocalDateTime departsAt = arrivesAt.plusMinutes(place.stayDurationMinutes());
+            timeline.add(new ItineraryTimelineEntry("PLACE_TRANSFER", place.name(), cursor, arrivesAt));
+            timeline.add(new ItineraryTimelineEntry("PLACE_VISIT", place.name(), arrivesAt, departsAt));
+            places.add(new ItineraryPlace(
+                    place.placeId(),
+                    place.name(),
+                    place.address(),
+                    place.latitude(),
+                    place.longitude(),
+                    place.travelFromPreviousMinutes(),
+                    arrivesAt,
+                    departsAt,
+                    place.stayDurationMinutes(),
+                    place.mustVisit(),
+                    true));
+            cursor = departsAt;
+        }
+
+        LocalDateTime stadiumArrivalAt = cursor.plusMinutes(request.finalLegToStadiumMinutes());
+        timeline.add(new ItineraryTimelineEntry(
+                "STADIUM_TRANSFER", game.getStadium(), cursor, stadiumArrivalAt));
+        timeline.add(new ItineraryTimelineEntry(
+                "STADIUM_ARRIVAL", game.getStadium(), stadiumArrivalAt, stadiumArrivalAt));
+        timeline.add(new ItineraryTimelineEntry(
+                "EXPECTED_GAME", "예상 경기 시간", gameStartAt, expectedGameEndAt));
+        timeline.add(new ItineraryTimelineEntry(
+                "RETURN_PLAN", itinerary.getDeparturePlace(), stadiumDepartureRecommendedAt, itinerary.getDepartureAt()));
+        timeline.sort(Comparator.comparing(ItineraryTimelineEntry::getStartsAt));
+
+        long gameStartSlackMinutes = Duration.between(stadiumArrivalAt, gameStartAt).toMinutes();
+        long entrySlackMinutes = gameStartSlackMinutes - request.stadiumEntryBufferMinutes();
+        String status = planStatus(entrySlackMinutes, stadiumDepartureRecommendedAt, expectedGameEndAt);
+        List<String> warnings = planWarnings(entrySlackMinutes, stadiumDepartureRecommendedAt, expectedGameEndAt);
+        itinerary.updatePlacePlan(
+                places,
+                request.stadiumEntryBufferMinutes(),
+                stadiumArrivalAt,
+                gameStartSlackMinutes,
+                stadiumDepartureRecommendedAt,
+                expectedGameEndAt,
+                status,
+                warnings,
+                timeline);
+        return ItineraryResponse.from(itinerary);
+    }
+
     public ItineraryResponse get(Long id) {
         Itinerary itinerary = itineraryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ITINERARY_NOT_FOUND));
@@ -182,6 +254,7 @@ public class ItineraryService {
                                 place.address(),
                                 place.latitude(),
                                 place.longitude(),
+                                place.travelFromPreviousMinutes(),
                                 place.arrivesAt(),
                                 place.departsAt(),
                                 place.stayDurationMinutes(),
@@ -234,7 +307,11 @@ public class ItineraryService {
         }
         if (expectedGameEndAt.plusMinutes(OVERTIME_RISK_BUFFER_MINUTES)
                 .isAfter(stadiumDepartureRecommendedAt)) {
-            warnings.add("연장전·경기 지연 시 귀가편 탑승이 어려울 수 있습니다.");
+            if (expectedGameEndAt.isAfter(stadiumDepartureRecommendedAt)) {
+                warnings.add("예상 경기 종료 후 역 이동·혼잡·탑승 여유시간이 부족해 귀가편 탑승이 어렵습니다.");
+            } else {
+                warnings.add("연장전·경기 지연 시 귀가편 탑승이 어려울 수 있습니다.");
+            }
         }
         return warnings;
     }
