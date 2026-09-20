@@ -58,10 +58,26 @@ class ItineraryApiIntegrationTests {
         String request = """
                 {
                   "gameId": "game-2026-09-20-001",
-                  "arrivalPlace": "서울역",
+                  "arrivalPlace": "대전역",
                   "arrivalAt": "2026-09-20T12:00:00",
+                  "arrivalTrain": {
+                    "trainNumber": "001",
+                    "trainType": "KTX",
+                    "departureStation": "서울역",
+                    "departureAt": "2026-09-20T11:00:00",
+                    "arrivalStation": "대전역",
+                    "arrivalAt": "2026-09-20T12:00:00"
+                  },
                   "departurePlace": "서울역",
                   "departureAt": "2026-09-20T23:30:00",
+                  "returnTrain": {
+                    "trainNumber": "122",
+                    "trainType": "KTX",
+                    "departureStation": "대전역",
+                    "departureAt": "2026-09-20T23:30:00",
+                    "arrivalStation": "서울역",
+                    "arrivalAt": "2026-09-21T00:30:00"
+                  },
                   "preferences": ["FOOD", "CAFE"],
                   "places": [
                     {"placeId": "place-1", "name": "첫 번째 장소", "address": "서울시", "latitude": 37.5, "longitude": 127.0},
@@ -87,7 +103,9 @@ class ItineraryApiIntegrationTests {
                 .andExpect(jsonPath("$.gameDate").value("2026-09-20"))
                 .andExpect(jsonPath("$.stadium").value("대전 한화생명 볼파크"))
                 .andExpect(jsonPath("$.homeTeam").value("한화 이글스"))
-                .andExpect(jsonPath("$.arrivalPlace").value("서울역"))
+                .andExpect(jsonPath("$.arrivalPlace").value("대전역"))
+                .andExpect(jsonPath("$.arrivalTrain.trainNumber").value("001"))
+                .andExpect(jsonPath("$.returnTrain.arrivalAt").value("2026-09-21T00:30:00"))
                 .andExpect(jsonPath("$.preferences[0]").value("FOOD"))
                 .andExpect(jsonPath("$.places.length()").value(2))
                 .andExpect(jsonPath("$.places[0].name").value("첫 번째 장소"))
@@ -103,8 +121,24 @@ class ItineraryApiIntegrationTests {
                                   "gameId":"game-2026-09-20-001",
                                   "arrivalPlace":"대전역",
                                   "arrivalAt":"2026-09-20T12:00:00",
+                                  "arrivalTrain":{
+                                    "trainNumber":"001",
+                                    "trainType":"KTX",
+                                    "departureStation":"서울역",
+                                    "departureAt":"2026-09-20T11:00:00",
+                                    "arrivalStation":"대전역",
+                                    "arrivalAt":"2026-09-20T12:00:00"
+                                  },
                                   "departurePlace":"대전역",
                                   "departureAt":"2026-09-21T00:30:00",
+                                  "returnTrain":{
+                                    "trainNumber":"122",
+                                    "trainType":"KTX",
+                                    "departureStation":"대전역",
+                                    "departureAt":"2026-09-21T00:30:00",
+                                    "arrivalStation":"서울역",
+                                    "arrivalAt":"2026-09-21T01:30:00"
+                                  },
                                   "stadiumEntryBufferMinutes":30,
                                   "finalLegToStadiumMinutes":20,
                                   "stadiumToDepartureMinutes":45,
@@ -124,6 +158,8 @@ class ItineraryApiIntegrationTests {
                 .andExpect(jsonPath("$.stadiumDepartureRecommendedAt").value("2026-09-20T23:00:00"))
                 .andExpect(jsonPath("$.expectedGameEndAt").value("2026-09-20T21:30:00"))
                 .andExpect(jsonPath("$.gameEndMayBeDelayed").value(true))
+                .andExpect(jsonPath("$.arrivalTrain.trainNumber").value("001"))
+                .andExpect(jsonPath("$.returnTrain.trainNumber").value("122"))
                 .andExpect(jsonPath("$.preferences[0]").value("FOOD"))
                 .andExpect(jsonPath("$.preferences[1]").value("CAFE"))
                 .andExpect(jsonPath("$.status").value("AMPLE"))
@@ -138,6 +174,8 @@ class ItineraryApiIntegrationTests {
         mockMvc.perform(get("/api/itineraries/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expectedGameEndAt").value("2026-09-20T21:30:00"))
+                .andExpect(jsonPath("$.arrivalTrain.arrivalStation").value("대전역"))
+                .andExpect(jsonPath("$.returnTrain.arrivalStation").value("서울역"))
                 .andExpect(jsonPath("$.preferences[0]").value("FOOD"))
                 .andExpect(jsonPath("$.gameEndMayBeDelayed").value(true));
     }
@@ -207,8 +245,24 @@ class ItineraryApiIntegrationTests {
                                   "gameId":"game-2026-09-20-001",
                                   "arrivalPlace":"대전역",
                                   "arrivalAt":"2026-09-20T12:00:00",
+                                  "arrivalTrain":{
+                                    "trainNumber":"001",
+                                    "trainType":"KTX",
+                                    "departureStation":"서울역",
+                                    "departureAt":"2026-09-20T11:00:00",
+                                    "arrivalStation":"대전역",
+                                    "arrivalAt":"2026-09-20T12:00:00"
+                                  },
                                   "departurePlace":"서울역",
                                   "departureAt":"2026-09-20T23:30:00",
+                                  "returnTrain":{
+                                    "trainNumber":"122",
+                                    "trainType":"KTX",
+                                    "departureStation":"대전역",
+                                    "departureAt":"2026-09-20T23:30:00",
+                                    "arrivalStation":"서울역",
+                                    "arrivalAt":"2026-09-21T00:30:00"
+                                  },
                                   "preferences":["FOOD","CAFE"],
                                   "places":[
                                     {"placeId":"place-2","name":"수정한 장소","address":"대전시","latitude":36.3,"longitude":127.4,"arrivesAt":"2026-09-20T13:00:00","departsAt":"2026-09-20T14:00:00","stayDurationMinutes":60,"mustVisit":true,"scheduled":true}
@@ -234,6 +288,8 @@ class ItineraryApiIntegrationTests {
         mockMvc.perform(get("/api/itineraries/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.travelMode").value("WALK"))
+                .andExpect(jsonPath("$.arrivalTrain.trainNumber").value("001"))
+                .andExpect(jsonPath("$.returnTrain.trainNumber").value("122"))
                 .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T15:00:00"))
                 .andExpect(jsonPath("$.warnings.length()").value(0))
                 .andExpect(jsonPath("$.timeline[1].description").value("수정한 장소"));
@@ -248,8 +304,24 @@ class ItineraryApiIntegrationTests {
                                   "gameId":"game-2026-09-20-001",
                                   "arrivalPlace":"대전역",
                                   "arrivalAt":"2026-09-20T12:00:00",
+                                  "arrivalTrain":{
+                                    "trainNumber":"001",
+                                    "trainType":"KTX",
+                                    "departureStation":"서울역",
+                                    "departureAt":"2026-09-20T11:00:00",
+                                    "arrivalStation":"대전역",
+                                    "arrivalAt":"2026-09-20T12:00:00"
+                                  },
                                   "departurePlace":"대전역",
                                   "departureAt":"2026-09-21T00:30:00",
+                                  "returnTrain":{
+                                    "trainNumber":"122",
+                                    "trainType":"KTX",
+                                    "departureStation":"대전역",
+                                    "departureAt":"2026-09-21T00:30:00",
+                                    "arrivalStation":"서울역",
+                                    "arrivalAt":"2026-09-21T01:30:00"
+                                  },
                                   "stadiumEntryBufferMinutes":30,
                                   "finalLegToStadiumMinutes":10,
                                   "stadiumToDepartureMinutes":45,
@@ -291,6 +363,8 @@ class ItineraryApiIntegrationTests {
                 .andExpect(jsonPath("$.places[1].arrivesAt").value("2026-09-20T13:00:00"))
                 .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T14:10:00"))
                 .andExpect(jsonPath("$.gameStartSlackMinutes").value(260))
+                .andExpect(jsonPath("$.arrivalTrain.trainNumber").value("001"))
+                .andExpect(jsonPath("$.returnTrain.trainNumber").value("122"))
                 .andExpect(jsonPath("$.stadiumDepartureRecommendedAt").value("2026-09-20T23:00:00"))
                 .andExpect(jsonPath("$.returnTransportBoardable").value(true))
                 .andExpect(jsonPath("$.status").value("AMPLE"));

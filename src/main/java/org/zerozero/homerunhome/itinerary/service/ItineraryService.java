@@ -15,10 +15,12 @@ import org.zerozero.homerunhome.game.repository.GameRepository;
 import org.zerozero.homerunhome.itinerary.domain.Itinerary;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryPlace;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryTimelineEntry;
+import org.zerozero.homerunhome.itinerary.domain.ItineraryTrain;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlacesEditRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryResponse;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryTrainRequest;
 import org.zerozero.homerunhome.itinerary.repository.ItineraryRepository;
 
 @Service
@@ -42,8 +44,10 @@ public class ItineraryService {
                 .game(game)
                 .arrivalPlace(request.arrivalPlace())
                 .arrivalAt(request.arrivalAt())
+                .arrivalTrain(train(request.arrivalTrain()))
                 .departurePlace(request.departurePlace())
                 .departureAt(request.departureAt())
+                .returnTrain(train(request.returnTrain()))
                 .preferences(preferences(request))
                 .places(places(request))
                 .travelMode(request.travelMode())
@@ -123,8 +127,10 @@ public class ItineraryService {
                 .game(game)
                 .arrivalPlace(request.arrivalPlace())
                 .arrivalAt(request.arrivalAt())
+                .arrivalTrain(train(request.arrivalTrain()))
                 .departurePlace(request.departurePlace())
                 .departureAt(request.departureAt())
+                .returnTrain(train(request.returnTrain()))
                 .preferences(request.preferences() == null ? List.of() : request.preferences())
                 .places(places)
                 .stadiumEntryBufferMinutes(request.stadiumEntryBufferMinutes())
@@ -150,8 +156,10 @@ public class ItineraryService {
                 game,
                 request.arrivalPlace(),
                 request.arrivalAt(),
+                train(request.arrivalTrain()),
                 request.departurePlace(),
                 request.departureAt(),
+                train(request.returnTrain()),
                 preferences(request),
                 places(request),
                 request.travelMode(),
@@ -242,6 +250,18 @@ public class ItineraryService {
 
     private List<String> preferences(ItineraryRequest request) {
         return request.preferences() == null ? List.of() : request.preferences();
+    }
+
+    private ItineraryTrain train(ItineraryTrainRequest request) {
+        return request == null
+                ? null
+                : new ItineraryTrain(
+                        request.trainNumber(),
+                        request.trainType(),
+                        request.departureStation(),
+                        request.departureAt(),
+                        request.arrivalStation(),
+                        request.arrivalAt());
     }
 
     private List<ItineraryPlace> places(ItineraryRequest request) {

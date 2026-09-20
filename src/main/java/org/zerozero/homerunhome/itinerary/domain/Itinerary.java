@@ -1,8 +1,11 @@
 package org.zerozero.homerunhome.itinerary.domain;
 
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -49,6 +52,28 @@ public class Itinerary {
 
     @Column(name = "departure_at", nullable = false)
     private LocalDateTime departureAt;
+
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "trainNumber", column = @Column(name = "arrival_train_number", length = 20)),
+        @AttributeOverride(name = "trainType", column = @Column(name = "arrival_train_type", length = 30)),
+        @AttributeOverride(name = "departureStation", column = @Column(name = "arrival_train_departure_station", length = 100)),
+        @AttributeOverride(name = "departureAt", column = @Column(name = "arrival_train_departure_at")),
+        @AttributeOverride(name = "arrivalStation", column = @Column(name = "arrival_train_arrival_station", length = 100)),
+        @AttributeOverride(name = "arrivalAt", column = @Column(name = "arrival_train_arrival_at"))
+    })
+    private ItineraryTrain arrivalTrain;
+
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "trainNumber", column = @Column(name = "return_train_number", length = 20)),
+        @AttributeOverride(name = "trainType", column = @Column(name = "return_train_type", length = 30)),
+        @AttributeOverride(name = "departureStation", column = @Column(name = "return_train_departure_station", length = 100)),
+        @AttributeOverride(name = "departureAt", column = @Column(name = "return_train_departure_at")),
+        @AttributeOverride(name = "arrivalStation", column = @Column(name = "return_train_arrival_station", length = 100)),
+        @AttributeOverride(name = "arrivalAt", column = @Column(name = "return_train_arrival_at"))
+    })
+    private ItineraryTrain returnTrain;
 
     @Column(name = "travel_mode", length = 30)
     private String travelMode;
@@ -109,8 +134,10 @@ public class Itinerary {
             Game game,
             String arrivalPlace,
             LocalDateTime arrivalAt,
+            ItineraryTrain arrivalTrain,
             String departurePlace,
             LocalDateTime departureAt,
+            ItineraryTrain returnTrain,
             List<String> preferences,
             List<ItineraryPlace> places,
             String travelMode,
@@ -126,8 +153,10 @@ public class Itinerary {
         this.game = game;
         this.arrivalPlace = arrivalPlace;
         this.arrivalAt = arrivalAt;
+        this.arrivalTrain = arrivalTrain;
         this.departurePlace = departurePlace;
         this.departureAt = departureAt;
+        this.returnTrain = returnTrain;
         this.preferences = new ArrayList<>(preferences);
         this.places = new ArrayList<>(places);
         this.travelMode = travelMode;
@@ -146,8 +175,10 @@ public class Itinerary {
             Game game,
             String arrivalPlace,
             LocalDateTime arrivalAt,
+            ItineraryTrain arrivalTrain,
             String departurePlace,
             LocalDateTime departureAt,
+            ItineraryTrain returnTrain,
             List<String> preferences,
             List<ItineraryPlace> places,
             String travelMode,
@@ -160,8 +191,10 @@ public class Itinerary {
         this.game = game;
         this.arrivalPlace = arrivalPlace;
         this.arrivalAt = arrivalAt;
+        this.arrivalTrain = arrivalTrain;
         this.departurePlace = departurePlace;
         this.departureAt = departureAt;
+        this.returnTrain = returnTrain;
         this.preferences = new ArrayList<>(preferences);
         this.places = new ArrayList<>(places);
         this.travelMode = travelMode;

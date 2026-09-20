@@ -14,8 +14,24 @@ Content-Type: application/json
   "gameId": "game-2026-09-20-001",
   "arrivalPlace": "대전역",
   "arrivalAt": "2026-09-20T12:00:00",
+  "arrivalTrain": {
+    "trainNumber": "001",
+    "trainType": "KTX",
+    "departureStation": "서울역",
+    "departureAt": "2026-09-20T11:00:00",
+    "arrivalStation": "대전역",
+    "arrivalAt": "2026-09-20T12:00:00"
+  },
   "departurePlace": "대전역",
   "departureAt": "2026-09-20T23:30:00",
+  "returnTrain": {
+    "trainNumber": "122",
+    "trainType": "KTX",
+    "departureStation": "대전역",
+    "departureAt": "2026-09-20T23:30:00",
+    "arrivalStation": "서울역",
+    "arrivalAt": "2026-09-21T00:30:00"
+  },
   "stadiumEntryBufferMinutes": 30,
   "finalLegToStadiumMinutes": 20,
   "stadiumToDepartureMinutes": 45,
@@ -42,11 +58,15 @@ Content-Type: application/json
 
 `preferences`는 선택한 관광 성향 목록이며 생성된 일정에 저장되어 응답과 이후 조회에 포함됩니다. 장소 후보를 고르고 방문 순서를 정하는 기능은 수행하지 않으므로, 요청의 `places`에는 이미 선택한 후보를 전달합니다.
 
+`arrivalTrain`과 `returnTrain`에는 선택한 왕편·귀가편 시간표를 전달합니다. 두 값은 선택 사항이며, 전달한 경우 열차 번호·종류·역·출발·도착 시각을 일정에 저장하고 응답 및 상세 조회에 포함합니다.
+
 `expectedGameDurationMinutes`는 예상 경기 시간이며 생략하면 180분을 사용합니다. 응답의 `expectedGameEndAt`은 실제 종료 확정 시각이 아니며, `gameEndMayBeDelayed`와 경고를 통해 연장전 등으로 늦어질 수 있음을 알립니다.
 
 ## 저장된 일정 장소 편집
 
 `PUT /api/itineraries/{id}/places`는 저장된 일정의 장소 전체 목록을 요청 배열 순서로 교체합니다. 원하는 최종 목록을 보내면 장소 추가·삭제·교체·재정렬과 체류시간 변경이 한 번에 적용되고, 편집 후 시간표가 다시 계산됩니다. `places: []`를 보내면 방문 장소를 모두 삭제합니다.
+
+장소 편집은 저장된 왕편·귀가편 열차 선택을 유지합니다.
 
 장소는 [`/api/course-place-candidates`](course-place-candidates.md)의 후보 정보를 사용하고, 각 구간 이동시간은 공통 [`POST /api/travel-times`](travel-time.md) API의 결과를 분 단위로 전달합니다. 이 편집 API는 Kakao를 직접 호출하지 않습니다. 현재 공통 이동시간 API는 `CAR` 경로를 지원합니다. 첫 장소의 `travelFromPreviousMinutes`는 도착 장소에서 이동하는 시간이고, 나머지는 앞 장소에서 이동하는 시간입니다. 마지막 장소에서 경기장까지는 `finalLegToStadiumMinutes`로 전달합니다.
 
