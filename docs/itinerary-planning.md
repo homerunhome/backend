@@ -41,11 +41,48 @@ Content-Type: application/json
 
 `expectedGameDurationMinutes`는 예상 경기 시간이며 생략하면 180분을 사용합니다. 응답의 `expectedGameEndAt`은 실제 종료 확정 시각이 아니며, `gameEndMayBeDelayed`와 경고를 통해 연장전 등으로 늦어질 수 있음을 알립니다.
 
+## 저장된 일정 장소 편집
+
+`PUT /api/itineraries/{id}/places`는 저장된 일정의 장소 전체 목록을 요청 배열 순서로 교체합니다. 원하는 최종 목록을 보내면 장소 추가·삭제·교체·재정렬과 체류시간 변경이 한 번에 적용되고, 편집 후 시간표가 다시 계산됩니다. `places: []`를 보내면 방문 장소를 모두 삭제합니다.
+
+장소는 [`/api/course-place-candidates`](course-place-candidates.md)의 후보 정보를 사용하고, 각 구간 이동시간은 공통 [`POST /api/travel-times`](travel-time.md) API의 결과를 분 단위로 전달합니다. 이 편집 API는 Kakao를 직접 호출하지 않습니다. 현재 공통 이동시간 API는 `CAR` 경로를 지원합니다. 첫 장소의 `travelFromPreviousMinutes`는 도착 장소에서 이동하는 시간이고, 나머지는 앞 장소에서 이동하는 시간입니다. 마지막 장소에서 경기장까지는 `finalLegToStadiumMinutes`로 전달합니다.
+
+```http
+PUT /api/itineraries/1/places
+Content-Type: application/json
+```
+
+```json
+{
+  "stadiumEntryBufferMinutes": 30,
+  "finalLegToStadiumMinutes": 20,
+  "stadiumToDepartureMinutes": 45,
+  "postGameCrowdBufferMinutes": 30,
+  "boardingBufferMinutes": 15,
+  "expectedGameDurationMinutes": 180,
+  "places": [
+    {
+      "placeId": "tour-api-content-id",
+      "name": "한밭수목원",
+      "address": "대전광역시 서구 둔산대로 169",
+      "latitude": 36.366,
+      "longitude": 127.388,
+      "travelFromPreviousMinutes": 20,
+      "stayDurationMinutes": 60,
+      "mustVisit": true
+    }
+  ]
+}
+```
+
+응답은 계산된 장소별 도착·출발 시각과 이동시간, 경기장 도착 예정시각, 경기 시작까지 여유, 경기장 출발 권장시각, `returnTransportBoardable` 탑승 가능 여부, 상태와 경고를 반환합니다. 시간이 부족하거나 귀가편을 탈 수 없는 입력도 저장을 차단하지 않고 원인 경고와 함께 계산 결과를 반환합니다. 일정 ID가 없으면 `ITINERARY_NOT_FOUND`, 필드 값이 유효하지 않으면 `VALIDATION_ERROR`를 반환합니다.
+
 ## 응답 계산
 
 - `stadiumArrivalAt`: 장소 체류·이동시간과 마지막 경기장 이동시간의 누적값
 - `gameStartSlackMinutes`: 경기 시작 시각과 경기장 도착 예정 시각 사이의 분
 - `stadiumDepartureRecommendedAt`: 귀가 교통편 출발에서 역 이동·경기 후 혼잡·탑승 여유시간을 역산한 경기장 출발 권장시각
+- `returnTransportBoardable`: 예상 경기 종료시각까지 기준으로 귀가 교통편 탑승 가능 여부
 - `status`: `AMPLE`, `ADEQUATE`, `TIGHT`, `GAME_LATE_POSSIBLE`, `RETURN_CAUTION`
 - `warnings`: 예상 종료 불확실성, 경기장 입장 여유 부족, 귀가편 위험 안내
 
