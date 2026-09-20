@@ -36,4 +36,8 @@ out/
 ### VS Code ###
 .vscode/
 
-.env
+# Environment files stay local or on EC2, including examples and variants.
+.env*
+*.env
+*.env.*
+*.pem
