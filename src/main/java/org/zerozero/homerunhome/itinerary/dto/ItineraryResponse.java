@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.zerozero.homerunhome.game.domain.Game;
 import org.zerozero.homerunhome.itinerary.domain.Itinerary;
 
 @Schema(description = "원정 일정 응답")
@@ -27,14 +28,15 @@ public record ItineraryResponse(
         Instant createdAt) {
 
     public static ItineraryResponse from(Itinerary itinerary) {
+        Game game = itinerary.getGame();
         return new ItineraryResponse(
                 itinerary.getId(),
-                itinerary.getGameId(),
-                itinerary.getGameDate(),
-                itinerary.getGameStartTime(),
-                itinerary.getStadium(),
-                itinerary.getHomeTeam(),
-                itinerary.getAwayTeam(),
+                game.getGameId(),
+                game.getGameDate(),
+                game.getGameStartTime(),
+                game.getStadium(),
+                game.getHomeTeam(),
+                game.getAwayTeam(),
                 itinerary.getArrivalPlace(),
                 itinerary.getArrivalAt(),
                 itinerary.getDeparturePlace(),

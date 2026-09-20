@@ -39,12 +39,7 @@ public class ItineraryService {
                         .toList();
 
         Itinerary itinerary = Itinerary.builder()
-                .gameId(game.getGameId())
-                .gameDate(game.getGameDate())
-                .gameStartTime(game.getGameStartTime())
-                .stadium(game.getStadium())
-                .homeTeam(game.getHomeTeam())
-                .awayTeam(game.getAwayTeam())
+                .game(game)
                 .arrivalPlace(request.arrivalPlace())
                 .arrivalAt(request.arrivalAt())
                 .departurePlace(request.departurePlace())
