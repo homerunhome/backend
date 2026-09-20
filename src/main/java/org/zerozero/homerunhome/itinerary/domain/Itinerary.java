@@ -211,6 +211,7 @@ public class Itinerary {
 
     public void updatePlacePlan(
             List<ItineraryPlace> places,
+            String travelMode,
             Integer stadiumEntryBufferMinutes,
             LocalDateTime stadiumArrivalAt,
             Long gameStartSlackMinutes,
@@ -220,6 +221,9 @@ public class Itinerary {
             List<String> planWarnings,
             List<ItineraryTimelineEntry> timeline) {
         this.places = new ArrayList<>(places);
+        if (travelMode != null) {
+            this.travelMode = travelMode;
+        }
         this.stadiumEntryBufferMinutes = stadiumEntryBufferMinutes;
         this.stadiumArrivalAt = stadiumArrivalAt;
         this.gameStartSlackMinutes = gameStartSlackMinutes;
