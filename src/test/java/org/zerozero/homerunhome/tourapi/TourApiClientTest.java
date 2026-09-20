@@ -8,6 +8,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,6 +81,38 @@ class TourApiClientTest {
     }
 
     @Test
+    void findsTourismContentsAroundCoordinate() {
+        koreanServer.expect(requestTo(Matchers.containsString("/KorService2/locationBasedList2")))
+                .andExpect(queryParam("mapX", "127.429188"))
+                .andExpect(queryParam("mapY", "36.317067"))
+                .andExpect(queryParam("radius", "1500"))
+                .andExpect(queryParam("contentTypeId", "12"))
+                .andExpect(queryParam("arrange", "E"))
+                .andRespond(withSuccess(successResponse("""
+                        [{
+                          "contentid":"tour-1",
+                          "contenttypeid":"12",
+                          "title":"야구장 주변 관광지",
+                          "mapx":"127.430",
+                          "mapy":"36.318"
+                        }]
+                        """, 1), MediaType.APPLICATION_JSON));
+
+        var response = koreanClient.findNearbyContents(
+                "12",
+                new BigDecimal("127.429188"),
+                new BigDecimal("36.317067"),
+                1500,
+                1,
+                100);
+
+        assertThat(response.items()).singleElement()
+                .extracting(content -> content.title())
+                .isEqualTo("야구장 주변 관광지");
+        koreanServer.verify();
+    }
+
+    @Test
     void findsDetailImagesAndBarrierFreeInformation() {
         koreanServer.expect(requestTo(Matchers.containsString("/KorService2/detailCommon2")))
                 .andExpect(queryParam("contentId", "125407"))
@@ -103,6 +136,17 @@ class TourApiClientTest {
                           "cpyrhtDivCd":"Type1"
                         }]
                         """, 1), MediaType.APPLICATION_JSON));
+        koreanServer.expect(requestTo(Matchers.containsString("/KorService2/detailIntro2")))
+                .andExpect(queryParam("contentId", "125407"))
+                .andExpect(queryParam("contentTypeId", "12"))
+                .andRespond(withSuccess(successResponse("""
+                        [{
+                          "contentid":"125407",
+                          "usetime":"09:00~18:00",
+                          "restdate":"매주 월요일",
+                          "parking":"주차 가능"
+                        }]
+                        """, 1), MediaType.APPLICATION_JSON));
         barrierFreeServer.expect(requestTo(Matchers.containsString("/KorWithService2/detailWithTour2")))
                 .andExpect(queryParam("contentId", "125407"))
                 .andRespond(withSuccess(successResponse("""
@@ -111,10 +155,16 @@ class TourApiClientTest {
 
         var detail = koreanClient.findDetail("125407");
         var images = koreanClient.findImages("125407");
+        var intro = koreanClient.findIntro("125407", "12");
         var accessibility = barrierFreeClient.findDetail("125407");
 
         assertThat(detail).isPresent().get().extracting(content -> content.title()).isEqualTo("한밭수목원");
         assertThat(images).singleElement().extracting(image -> image.name()).isEqualTo("한밭수목원 전경");
+        assertThat(intro).isPresent().get().satisfies(info -> {
+            assertEquals("09:00~18:00", info.useTime());
+            assertEquals("매주 월요일", info.restDate());
+            assertEquals("주차 가능", info.parking());
+        });
         assertThat(accessibility).isPresent().get()
                 .extracting(info -> info.wheelchair())
                 .isEqualTo("대여 가능");

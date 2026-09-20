@@ -3,6 +3,7 @@ package org.zerozero.homerunhome.tourapi.client;
 import static org.zerozero.homerunhome.tourapi.client.TourApiFieldReader.decimal;
 import static org.zerozero.homerunhome.tourapi.client.TourApiFieldReader.text;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.zerozero.homerunhome.tourapi.dto.TourApiContent;
 import org.zerozero.homerunhome.tourapi.dto.TourApiImage;
+import org.zerozero.homerunhome.tourapi.dto.TourApiIntro;
 
 @Component
 public class KoreanTourApiClient {
@@ -41,6 +43,23 @@ public class KoreanTourApiClient {
         return mapPage(response, this::toContent);
     }
 
+    public TourApiPageResult<TourApiContent> findNearbyContents(
+            String contentTypeId,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            int radiusMeters,
+            int page,
+            int size) {
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("mapX", longitude);
+        parameters.put("mapY", latitude);
+        parameters.put("radius", radiusMeters);
+        parameters.put("contentTypeId", contentTypeId);
+        parameters.put("arrange", "E");
+        TourApiPage response = executor.execute(restClient, "locationBasedList2", parameters, page, size);
+        return mapPage(response, this::toContent);
+    }
+
     public Optional<TourApiContent> findDetail(String contentId) {
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("contentId", contentId);
@@ -63,6 +82,14 @@ public class KoreanTourApiClient {
         return executor.execute(restClient, "detailImage2", parameters, 1, 100).items().stream()
                 .map(this::toImage)
                 .toList();
+    }
+
+    public Optional<TourApiIntro> findIntro(String contentId, String contentTypeId) {
+        Map<String, Object> parameters = Map.of(
+                "contentId", contentId,
+                "contentTypeId", contentTypeId);
+        TourApiPage response = executor.execute(restClient, "detailIntro2", parameters, 1, 1);
+        return response.items().stream().findFirst().map(this::toIntro);
     }
 
     public TourApiPageResult<TourApiContent> findDaejeonEvents(
@@ -100,6 +127,27 @@ public class KoreanTourApiClient {
                 text(fields, "originimgurl"),
                 text(fields, "smallimageurl"),
                 text(fields, "cpyrhtDivCd"));
+    }
+
+    private TourApiIntro toIntro(Map<String, Object> fields) {
+        return new TourApiIntro(
+                firstText(fields, "usetime", "usetimeculture", "playtime"),
+                firstText(fields, "restdate", "restdateculture"),
+                firstText(fields, "usefee", "usetimefestival"),
+                firstText(fields, "parking", "parkingculture", "parkingfee"),
+                firstText(fields, "spendtime", "spendtimefestival"),
+                text(fields, "eventplace"),
+                text(fields, "bookingplace"));
+    }
+
+    private String firstText(Map<String, Object> fields, String... names) {
+        for (String name : names) {
+            String value = text(fields, name);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private <T> TourApiPageResult<T> mapPage(

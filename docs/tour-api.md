@@ -7,8 +7,10 @@
 | 활용신청 서비스 | 오퍼레이션 | 용도 |
 | --- | --- | --- |
 | 국문 관광정보 서비스 | `areaBasedList2` | 대전 관광 콘텐츠와 `contentId` 조회 |
+| 국문 관광정보 서비스 | `locationBasedList2` | 코스 기준 위치 주변 관광 콘텐츠 조회 |
 | 국문 관광정보 서비스 | `detailCommon2` | 관광 콘텐츠 상세 소개 조회 |
 | 국문 관광정보 서비스 | `detailImage2` | 대표·추가 이미지 조회 |
+| 국문 관광정보 서비스 | `detailIntro2` | 운영시간·휴무일·요금·주차 등 이용정보 조회 |
 | 국문 관광정보 서비스 | `searchFestival2` | 날짜별 대전 행사 조회 |
 | 무장애 여행 정보 | `detailWithTour2` | 장애인·어르신·영유아 동반 편의정보 조회 |
 
@@ -101,6 +103,15 @@ GET /api/tourism/contents/{contentId}
       "copyrightType": "Type1"
     }
   ],
+  "usageInformation": {
+    "useTime": "09:00~18:00",
+    "restDate": "매주 월요일",
+    "useFee": "무료",
+    "parking": "주차 가능",
+    "duration": "약 1시간",
+    "eventPlace": "",
+    "bookingPlace": ""
+  },
   "accessibility": {
     "parking": "장애인 주차구역 있음",
     "wheelchair": "휠체어 대여 가능",
@@ -111,7 +122,7 @@ GET /api/tourism/contents/{contentId}
 }
 ```
 
-추가 이미지가 없으면 `images`는 빈 배열입니다. TourAPI에 무장애 정보가 없으면 `accessibility`는 `null`입니다. 소개에 포함된 HTML은 일반 텍스트로 변환해 반환합니다.
+추가 이미지가 없으면 `images`는 빈 배열입니다. 콘텐츠 유형별 이용정보가 없으면 `usageInformation`, 무장애 정보가 없으면 `accessibility`는 `null`입니다. 소개와 이용정보에 포함된 HTML은 일반 텍스트로 변환해 반환합니다.
 
 ## 경기 날짜 전후 대전 행사
 

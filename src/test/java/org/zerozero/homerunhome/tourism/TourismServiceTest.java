@@ -20,6 +20,7 @@ import org.zerozero.homerunhome.tourapi.client.TourApiPageResult;
 import org.zerozero.homerunhome.tourapi.dto.TourApiAccessibility;
 import org.zerozero.homerunhome.tourapi.dto.TourApiContent;
 import org.zerozero.homerunhome.tourapi.dto.TourApiImage;
+import org.zerozero.homerunhome.tourapi.dto.TourApiIntro;
 import org.zerozero.homerunhome.tourism.dto.TourismContentType;
 import org.zerozero.homerunhome.tourism.service.TourismContentService;
 import org.zerozero.homerunhome.tourism.service.TourismEventService;
@@ -59,6 +60,8 @@ class TourismServiceTest {
         when(koreanClient.findDetail("125407")).thenReturn(Optional.of(content()));
         when(koreanClient.findImages("125407")).thenReturn(List.of(new TourApiImage(
                 "전경", "https://example.com/original.jpg", "https://example.com/small.jpg", "Type1")));
+        when(koreanClient.findIntro("125407", "12")).thenReturn(Optional.of(new TourApiIntro(
+                "09:00~18:00", "매주 월요일", "무료", "주차 가능", "1시간", "", "")));
         when(barrierFreeClient.findDetail("125407")).thenReturn(Optional.of(accessibility()));
 
         var response = contentService.findDetail("125407");
@@ -68,6 +71,8 @@ class TourismServiceTest {
         assertThat(response.images()).singleElement()
                 .extracting(image -> image.originalUrl())
                 .isEqualTo("https://example.com/original.jpg");
+        assertEquals("09:00~18:00", response.usageInformation().useTime());
+        assertEquals("매주 월요일", response.usageInformation().restDate());
         assertEquals("대여 가능", response.accessibility().wheelchair());
     }
 
@@ -75,11 +80,13 @@ class TourismServiceTest {
     void allowsContentWithoutImagesOrBarrierFreeInformation() {
         when(koreanClient.findDetail("125407")).thenReturn(Optional.of(content()));
         when(koreanClient.findImages("125407")).thenReturn(List.of());
+        when(koreanClient.findIntro("125407", "12")).thenReturn(Optional.empty());
         when(barrierFreeClient.findDetail("125407")).thenReturn(Optional.empty());
 
         var response = contentService.findDetail("125407");
 
         assertThat(response.images()).isEmpty();
+        assertThat(response.usageInformation()).isNull();
         assertThat(response.accessibility()).isNull();
     }
 
