@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,6 +47,14 @@ public class ItineraryController {
     public ResponseEntity<ItineraryResponse> create(@Valid @RequestBody ItineraryRequest request) {
         ItineraryResponse response = itineraryService.create(request);
         return ResponseEntity.created(URI.create("/api/itineraries/" + response.id())).body(response);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "원정 일정 수정", description = "저장된 일정의 장소 순서와 코스 정보를 수정합니다.")
+    public ItineraryResponse update(
+            @Parameter(description = "자동 증가 일정 ID", example = "1") @PathVariable Long id,
+            @Valid @RequestBody ItineraryRequest request) {
+        return itineraryService.update(id, request);
     }
 
     @GetMapping("/{id}")
