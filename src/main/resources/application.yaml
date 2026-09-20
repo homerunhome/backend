@@ -1,3 +1,11 @@
 spring:
   application:
     name: homerunhome
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/homerunhome?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
