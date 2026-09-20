@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.zerozero.homerunhome.common.ApiErrorResponse;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryResponse;
 import org.zerozero.homerunhome.itinerary.service.ItineraryService;
@@ -28,6 +29,15 @@ import org.zerozero.homerunhome.itinerary.service.ItineraryService;
 public class ItineraryController {
 
     private final ItineraryService itineraryService;
+
+    @PostMapping("/generate")
+    @Operation(
+            summary = "경기 전 기본 코스 생성",
+            description = "장소별 이동·체류시간과 교통편 여유시간으로 시간순 일정을 계산하고 저장합니다.")
+    public ResponseEntity<ItineraryResponse> generate(@Valid @RequestBody ItineraryPlanRequest request) {
+        ItineraryResponse response = itineraryService.generate(request);
+        return ResponseEntity.created(URI.create("/api/itineraries/" + response.id())).body(response);
+    }
 
     @PostMapping
     @Operation(summary = "원정 일정 생성", description = "선택한 경기, 교통편, 성향 및 장소 순서를 저장합니다.")
