@@ -113,4 +113,14 @@ class ItineraryApiIntegrationTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
     }
+
+    @Test
+    void exposesOpenApiDocumentForItineraryEndpoints() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/itineraries'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/itineraries/{id}'].get").exists());
+
+        mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
+    }
 }

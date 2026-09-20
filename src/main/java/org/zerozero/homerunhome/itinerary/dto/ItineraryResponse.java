@@ -6,8 +6,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.zerozero.homerunhome.itinerary.domain.Itinerary;
 
+@Schema(description = "원정 일정 응답")
 public record ItineraryResponse(
         Long id,
         String gameId,
@@ -49,6 +51,7 @@ public record ItineraryResponse(
                 itinerary.getCreatedAt());
     }
 
+    @Schema(description = "일정 내 장소 응답")
     public record PlaceResponse(
             String placeId, String name, String address, BigDecimal latitude, BigDecimal longitude) {}
 }
