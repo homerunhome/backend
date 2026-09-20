@@ -22,7 +22,10 @@ public enum ErrorCode {
     INVALID_ADDRESS(HttpStatus.BAD_REQUEST, "주소 형식이 올바르지 않습니다."),
     ADDRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "주소 검색 결과를 찾을 수 없습니다."),
     ADDRESS_AMBIGUOUS(HttpStatus.CONFLICT, "주소 검색 결과가 여러 개입니다. 주소를 더 정확하게 입력해 주세요."),
-    INVALID_PLACE_SEARCH_REQUEST(HttpStatus.BAD_REQUEST, "장소 검색 조건이 올바르지 않습니다.");
+    INVALID_PLACE_SEARCH_REQUEST(HttpStatus.BAD_REQUEST, "장소 검색 조건이 올바르지 않습니다."),
+    INVALID_TRAVEL_TIME_REQUEST(HttpStatus.BAD_REQUEST, "이동시간 조회 조건이 올바르지 않습니다."),
+    UNSUPPORTED_TRAVEL_MODE(HttpStatus.BAD_REQUEST, "지원하지 않는 이동수단입니다."),
+    ROUTE_NOT_FOUND(HttpStatus.NOT_FOUND, "출발지와 도착지 사이의 경로를 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;

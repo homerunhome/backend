@@ -44,7 +44,10 @@ public class KakaoMobilityClient {
             throw new BusinessException(ErrorCode.KAKAO_API_REQUEST_FAILED);
         }
         KakaoRouteResponse.Route route = response.routes().getFirst();
-        if (route.resultCode() != 0 || route.summary() == null || route.summary().fare() == null) {
+        if (route.resultCode() != 0) {
+            throw new BusinessException(ErrorCode.ROUTE_NOT_FOUND);
+        }
+        if (route.summary() == null || route.summary().fare() == null) {
             throw new BusinessException(ErrorCode.KAKAO_API_REQUEST_FAILED);
         }
         KakaoRouteResponse.Summary summary = route.summary();
