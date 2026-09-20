@@ -10,8 +10,31 @@ public record CoursePlaceCandidateRequest(
         PlaceExploreScope scope,
         List<CoursePlaceCategory> categories,
         PlaceCoordinate center,
+        List<PlaceCoordinate> coursePoints,
         DaejeonHotspot hotspot,
         String keyword,
         Integer maxDistanceMeters,
         LocalDate eventDate,
-        Integer limit) {}
+        Integer limit) {
+
+    public CoursePlaceCandidateRequest(
+            PlaceExploreScope scope,
+            List<CoursePlaceCategory> categories,
+            PlaceCoordinate center,
+            DaejeonHotspot hotspot,
+            String keyword,
+            Integer maxDistanceMeters,
+            LocalDate eventDate,
+            Integer limit) {
+        this(
+                scope,
+                categories,
+                center,
+                null,
+                hotspot,
+                keyword,
+                maxDistanceMeters,
+                eventDate,
+                limit);
+    }
+}

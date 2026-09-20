@@ -3,11 +3,9 @@ package org.zerozero.homerunhome.place.candidate.service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.zerozero.homerunhome.common.BusinessException;
@@ -22,7 +20,6 @@ import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceCandidate;
 import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceCandidateRequest;
 import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceCandidateResponse;
 import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceCategory;
-import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceProvider;
 import org.zerozero.homerunhome.place.explore.dto.DaejeonHotspot;
 import org.zerozero.homerunhome.place.explore.dto.PlaceCoordinate;
 import org.zerozero.homerunhome.place.explore.dto.PlaceExploreScope;
@@ -35,91 +32,115 @@ public class CoursePlaceCandidateService {
 
     private static final int DEFAULT_LIMIT = 30;
     private static final int MAX_LIMIT = 50;
+    private static final int MAX_COURSE_POINT_COUNT = 10;
     private static final int MAX_DISTANCE_METERS = 20_000;
     private static final int KAKAO_PAGE_SIZE = 15;
     private static final int TOUR_API_PAGE_SIZE = 100;
-    private static final int DUPLICATE_DISTANCE_METERS = 100;
     private static final int MAX_KEYWORD_LENGTH = 100;
-    private static final double EARTH_RADIUS_METERS = 6_371_000;
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
-    private static final Pattern NAME_SEPARATOR = Pattern.compile("[\\p{Punct}\\s]+");
     private static final PlaceCoordinate STADIUM = coordinate("36.317067", "127.429188");
     private static final PlaceCoordinate DAEJEON_STATION = coordinate("36.3322", "127.4345");
 
     private final KakaoApiClient kakaoApiClient;
     private final KoreanTourApiClient koreanTourApiClient;
+    private final CoursePlaceCandidateAssembler candidateAssembler;
 
     public CoursePlaceCandidateResponse findCandidates(CoursePlaceCandidateRequest request) {
         validateRequired(request);
         List<CoursePlaceCategory> categories = request.categories().stream().distinct().toList();
         String keyword = normalizeKeyword(request.keyword());
-        PlaceCoordinate center = resolveCenter(request);
+        List<PlaceCoordinate> centers = resolveCenters(request);
+        PlaceCoordinate center = centers.isEmpty() ? null : centers.getFirst();
         int maxDistanceMeters = request.maxDistanceMeters() == null
                 ? defaultDistance(request.scope(), request.hotspot())
                 : request.maxDistanceMeters();
         int limit = request.limit() == null ? DEFAULT_LIMIT : request.limit();
-        validateOptions(categories, center, maxDistanceMeters, limit, request.eventDate());
+        validateOptions(request, categories, centers, maxDistanceMeters, limit, request.eventDate());
 
-        List<CoursePlaceCandidate> candidates = new ArrayList<>();
+        int perSearchLimit = Math.max(
+                KAKAO_PAGE_SIZE,
+                (int) Math.ceil((double) limit / (categories.size() * centers.size())));
+        List<RankedCoursePlaceCandidate> candidates = new ArrayList<>();
         for (CoursePlaceCategory category : categories) {
-            if (category.usesKakao()) {
-                candidates.addAll(findKakaoCandidates(
-                        category, keyword, center, maxDistanceMeters));
-            }
-            if (category.usesNearbyTourApi()) {
-                candidates.addAll(findTourCandidates(
-                        category, keyword, center, maxDistanceMeters));
-            }
             if (category == CoursePlaceCategory.FESTIVAL_EVENT) {
                 candidates.addAll(findEventCandidates(
-                        keyword, center, maxDistanceMeters, request.eventDate()));
+                        keyword, centers, maxDistanceMeters, request.eventDate()));
+                continue;
+            }
+            for (PlaceCoordinate searchCenter : centers) {
+                if (category.usesKakao()) {
+                    candidates.addAll(findKakaoCandidates(
+                            category,
+                            keyword,
+                            searchCenter,
+                            maxDistanceMeters,
+                            perSearchLimit));
+                }
+                if (category.usesNearbyTourApi()) {
+                    candidates.addAll(findTourCandidates(
+                            category, keyword, searchCenter, maxDistanceMeters));
+                }
             }
         }
 
-        List<CoursePlaceCandidate> places = removeDuplicates(candidates).stream()
-                .sorted(Comparator.comparingInt(CoursePlaceCandidate::distanceMeters))
-                .limit(limit)
-                .toList();
-        return new CoursePlaceCandidateResponse(request.scope(), center, maxDistanceMeters, places);
+        List<CoursePlaceCandidate> places = candidateAssembler.mergeAndSort(candidates, limit);
+        return new CoursePlaceCandidateResponse(
+                request.scope(), center, centers, maxDistanceMeters, places);
     }
 
-    private List<CoursePlaceCandidate> findKakaoCandidates(
+    private List<RankedCoursePlaceCandidate> findKakaoCandidates(
             CoursePlaceCategory category,
             String keyword,
             PlaceCoordinate center,
-            int maxDistanceMeters) {
+            int maxDistanceMeters,
+            int resultLimit) {
         KakaoCoordinate kakaoCenter = toKakaoCoordinate(center);
         String query = keyword == null ? category.defaultKeyword() : keyword;
-        List<KakaoPlace> places;
-        if (query == null) {
-            places = kakaoApiClient.searchPlacesByCategory(KakaoCategoryPlaceSearchRequest.around(
-                            category.kakaoCode(), kakaoCenter, maxDistanceMeters, 1, KAKAO_PAGE_SIZE))
-                    .items();
-        } else {
-            places = kakaoApiClient.searchPlaces(new KakaoPlaceSearchRequest(
+        List<KakaoPlace> places = new ArrayList<>();
+        int page = 1;
+        boolean end = false;
+        while (places.size() < resultLimit && page <= 45 && !end) {
+            var result = query == null
+                    ? kakaoApiClient.searchPlacesByCategory(
+                            KakaoCategoryPlaceSearchRequest.around(
+                                    category.kakaoCode(),
+                                    kakaoCenter,
+                                    maxDistanceMeters,
+                                    page,
+                                    KAKAO_PAGE_SIZE))
+                    : kakaoApiClient.searchPlaces(new KakaoPlaceSearchRequest(
                             query,
                             kakaoCenter,
                             maxDistanceMeters,
                             category.kakaoCode(),
                             null,
                             KakaoPlaceSearchSort.DISTANCE,
-                            1,
-                            KAKAO_PAGE_SIZE))
-                    .items();
+                            page,
+                            KAKAO_PAGE_SIZE));
+            places.addAll(result.items());
+            end = result.end();
+            page++;
         }
-        return places.stream()
-                .filter(place -> place.coordinate() != null)
-                .map(place -> toCandidate(place, category, center))
-                .filter(place -> place.distanceMeters() <= maxDistanceMeters)
-                .toList();
+        List<RankedCoursePlaceCandidate> candidates = new ArrayList<>();
+        for (int index = 0; index < places.size() && candidates.size() < resultLimit; index++) {
+            KakaoPlace place = places.get(index);
+            if (place.coordinate() == null) {
+                continue;
+            }
+            CoursePlaceCandidate candidate = candidateAssembler.from(place, category, center);
+            if (candidate.distanceMeters() <= maxDistanceMeters) {
+                candidates.add(new RankedCoursePlaceCandidate(candidate, index));
+            }
+        }
+        return candidates;
     }
 
-    private List<CoursePlaceCandidate> findTourCandidates(
+    private List<RankedCoursePlaceCandidate> findTourCandidates(
             CoursePlaceCategory category,
             String keyword,
             PlaceCoordinate center,
             int maxDistanceMeters) {
-        return koreanTourApiClient
+        List<TourApiContent> contents = koreanTourApiClient
                 .findNearbyContents(
                         category.tourismContentType().tourApiId(),
                         center.longitude(),
@@ -127,114 +148,61 @@ public class CoursePlaceCandidateService {
                         maxDistanceMeters,
                         1,
                         TOUR_API_PAGE_SIZE)
-                .items().stream()
-                .filter(this::hasCoordinate)
-                .filter(content -> matchesKeyword(content, keyword))
-                .map(content -> toCandidate(content, category, center))
-                .filter(place -> place.distanceMeters() <= maxDistanceMeters)
-                .toList();
+                .items();
+        List<RankedCoursePlaceCandidate> candidates = new ArrayList<>();
+        for (int index = 0; index < contents.size(); index++) {
+            TourApiContent content = contents.get(index);
+            if (!hasCoordinate(content) || !matchesKeyword(content, keyword)) {
+                continue;
+            }
+            CoursePlaceCandidate candidate = candidateAssembler.from(content, category, center);
+            if (candidate.distanceMeters() <= maxDistanceMeters) {
+                candidates.add(new RankedCoursePlaceCandidate(candidate, index));
+            }
+        }
+        return candidates;
     }
 
-    private List<CoursePlaceCandidate> findEventCandidates(
+    private List<RankedCoursePlaceCandidate> findEventCandidates(
             String keyword,
-            PlaceCoordinate center,
+            List<PlaceCoordinate> centers,
             int maxDistanceMeters,
             LocalDate eventDate) {
-        return koreanTourApiClient
+        List<TourApiContent> contents = koreanTourApiClient
                 .findDaejeonEvents(eventDate, eventDate, 1, TOUR_API_PAGE_SIZE)
-                .items().stream()
-                .filter(this::hasCoordinate)
-                .filter(content -> matchesKeyword(content, keyword))
-                .map(content -> toCandidate(
-                        content, CoursePlaceCategory.FESTIVAL_EVENT, center))
-                .filter(place -> place.distanceMeters() <= maxDistanceMeters)
-                .toList();
-    }
-
-    private List<CoursePlaceCandidate> removeDuplicates(List<CoursePlaceCandidate> candidates) {
-        List<CoursePlaceCandidate> unique = new ArrayList<>();
-        for (CoursePlaceCandidate candidate : candidates) {
-            int duplicateIndex = findDuplicateIndex(unique, candidate);
-            if (duplicateIndex < 0) {
-                unique.add(candidate);
-            } else if (prefer(candidate, unique.get(duplicateIndex))) {
-                unique.set(duplicateIndex, candidate);
+                .items();
+        List<RankedCoursePlaceCandidate> candidates = new ArrayList<>();
+        for (int index = 0; index < contents.size(); index++) {
+            TourApiContent content = contents.get(index);
+            if (!hasCoordinate(content) || !matchesKeyword(content, keyword)) {
+                continue;
+            }
+            CoursePlaceCandidate candidate = candidateAssembler.from(
+                    content,
+                    CoursePlaceCategory.FESTIVAL_EVENT,
+                    candidateAssembler.nearestCenter(
+                            centers, content.latitude(), content.longitude()));
+            if (candidate.distanceMeters() <= maxDistanceMeters) {
+                candidates.add(new RankedCoursePlaceCandidate(candidate, index));
             }
         }
-        return unique;
+        return candidates;
     }
 
-    private int findDuplicateIndex(
-            List<CoursePlaceCandidate> unique, CoursePlaceCandidate candidate) {
-        String candidateName = normalizeName(candidate.name());
-        if (candidateName.isEmpty()) {
-            return -1;
-        }
-        for (int index = 0; index < unique.size(); index++) {
-            CoursePlaceCandidate existing = unique.get(index);
-            if (candidateName.equals(normalizeName(existing.name()))
-                    && distanceBetween(
-                                    candidate.latitude(),
-                                    candidate.longitude(),
-                                    existing.latitude(),
-                                    existing.longitude())
-                            <= DUPLICATE_DISTANCE_METERS) {
-                return index;
-            }
-        }
-        return -1;
-    }
-
-    private boolean prefer(CoursePlaceCandidate candidate, CoursePlaceCandidate existing) {
-        boolean candidateHasImage = hasText(candidate.imageUrl());
-        boolean existingHasImage = hasText(existing.imageUrl());
-        if (candidateHasImage != existingHasImage) {
-            return candidateHasImage;
-        }
-        return candidate.distanceMeters() < existing.distanceMeters();
-    }
-
-    private CoursePlaceCandidate toCandidate(
-            KakaoPlace place, CoursePlaceCategory category, PlaceCoordinate center) {
-        return new CoursePlaceCandidate(
-                CoursePlaceProvider.KAKAO,
-                place.id(),
-                place.name(),
-                category,
-                hasText(place.roadAddressName()) ? place.roadAddressName() : place.addressName(),
-                place.coordinate().latitude(),
-                place.coordinate().longitude(),
-                null,
-                place.placeUrl(),
-                distanceBetween(center, place.coordinate().latitude(), place.coordinate().longitude()));
-    }
-
-    private CoursePlaceCandidate toCandidate(
-            TourApiContent content, CoursePlaceCategory category, PlaceCoordinate center) {
-        String address = Stream.of(content.address(), content.addressDetail())
-                .filter(this::hasText)
-                .reduce((first, second) -> first + " " + second)
-                .orElse(null);
-        return new CoursePlaceCandidate(
-                CoursePlaceProvider.TOUR_API,
-                content.contentId(),
-                content.title(),
-                category,
-                address,
-                content.latitude(),
-                content.longitude(),
-                hasText(content.imageUrl()) ? content.imageUrl() : content.thumbnailUrl(),
-                "/api/tourism/contents/" + content.contentId(),
-                distanceBetween(center, content.latitude(), content.longitude()));
-    }
-
-    private PlaceCoordinate resolveCenter(CoursePlaceCandidateRequest request) {
+    private List<PlaceCoordinate> resolveCenters(CoursePlaceCandidateRequest request) {
         return switch (request.scope()) {
-            case STADIUM_NEARBY -> STADIUM;
-            case STATION_NEARBY -> DAEJEON_STATION;
-            case DAEJEON_HOTSPOT -> hotspotCoordinate(request.hotspot());
-            case CURRENT_LOCATION, COURSE_NEARBY, CUSTOM -> request.center();
+            case STADIUM_NEARBY -> List.of(STADIUM);
+            case STATION_NEARBY -> List.of(DAEJEON_STATION);
+            case DAEJEON_HOTSPOT -> nullableCoordinate(hotspotCoordinate(request.hotspot()));
+            case CURRENT_LOCATION, CUSTOM -> nullableCoordinate(request.center());
+            case COURSE_NEARBY -> request.coursePoints() == null || request.coursePoints().isEmpty()
+                    ? nullableCoordinate(request.center())
+                    : request.coursePoints().stream().distinct().toList();
         };
+    }
+
+    private List<PlaceCoordinate> nullableCoordinate(PlaceCoordinate coordinate) {
+        return coordinate == null ? List.of() : List.of(coordinate);
     }
 
     private int defaultDistance(PlaceExploreScope scope, DaejeonHotspot hotspot) {
@@ -260,17 +228,23 @@ public class CoursePlaceCandidateService {
     }
 
     private void validateOptions(
+            CoursePlaceCandidateRequest request,
             List<CoursePlaceCategory> categories,
-            PlaceCoordinate center,
+            List<PlaceCoordinate> centers,
             int maxDistanceMeters,
             int limit,
             LocalDate eventDate) {
         if (categories.size() > CoursePlaceCategory.values().length
-                || !validCoordinate(center)
+                || centers.isEmpty()
+                || centers.size() > MAX_COURSE_POINT_COUNT
+                || centers.stream().anyMatch(center -> !validCoordinate(center))
                 || maxDistanceMeters < 1
                 || maxDistanceMeters > MAX_DISTANCE_METERS
                 || limit < 1
                 || limit > MAX_LIMIT
+                || (request.scope() != PlaceExploreScope.COURSE_NEARBY
+                        && request.coursePoints() != null
+                        && !request.coursePoints().isEmpty())
                 || (categories.contains(CoursePlaceCategory.FESTIVAL_EVENT) && eventDate == null)) {
             throw invalidRequest();
         }
@@ -315,32 +289,6 @@ public class CoursePlaceCandidateService {
         return content.latitude() != null && content.longitude() != null;
     }
 
-    private String normalizeName(String name) {
-        return name == null
-                ? ""
-                : NAME_SEPARATOR.matcher(name.toLowerCase(Locale.ROOT)).replaceAll("");
-    }
-
-    private int distanceBetween(PlaceCoordinate from, BigDecimal latitude, BigDecimal longitude) {
-        return distanceBetween(from.latitude(), from.longitude(), latitude, longitude);
-    }
-
-    private int distanceBetween(
-            BigDecimal fromLatitude,
-            BigDecimal fromLongitude,
-            BigDecimal toLatitude,
-            BigDecimal toLongitude) {
-        double startLatitude = Math.toRadians(fromLatitude.doubleValue());
-        double endLatitude = Math.toRadians(toLatitude.doubleValue());
-        double latitudeDelta = endLatitude - startLatitude;
-        double longitudeDelta = Math.toRadians(toLongitude.doubleValue() - fromLongitude.doubleValue());
-        double haversine = Math.pow(Math.sin(latitudeDelta / 2), 2)
-                + Math.cos(startLatitude)
-                        * Math.cos(endLatitude)
-                        * Math.pow(Math.sin(longitudeDelta / 2), 2);
-        double centralAngle = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-        return (int) Math.round(EARTH_RADIUS_METERS * centralAngle);
-    }
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
