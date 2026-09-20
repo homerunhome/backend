@@ -16,8 +16,9 @@ test -s build/libs/app.jar
 # Reject an old workflow rerun after main has advanced.
 head_sha="$(curl --fail --silent --show-error --max-time 20 \
   -H "Authorization: Bearer $GH_TOKEN" \
-  "https://api.github.com/repos/$GITHUB_REPOSITORY/git/ref/heads/main" \
-  | python3 -c 'import json,sys; print(json.load(sys.stdin)["object"]["sha"])')"
+  -H 'Accept: application/vnd.github.sha' \
+  "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/main")"
+[[ "$head_sha" =~ ^[a-f0-9]{40}$ ]]
 if [[ "$head_sha" != "$GITHUB_SHA" ]]; then
   echo 'This commit is no longer main HEAD. Run the latest main workflow.' >&2
   exit 1

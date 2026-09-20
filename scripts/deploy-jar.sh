@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 release_id="${1:?Usage: deploy-jar.sh RELEASE_ID}"
 [[ "$release_id" =~ ^[a-f0-9]{40}-[0-9]+-[0-9]+$ ]]
-app_root="$HOME/homerunhome"
+app_root="${HOMERUNHOME_APP_ROOT:-$HOME/homerunhome}"
 release_dir="$app_root/releases/$release_id"
 service=homerunhome.service
 

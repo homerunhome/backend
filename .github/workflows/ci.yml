@@ -42,10 +42,10 @@ jobs:
 
       - name: Check deployment scripts and rollback behavior
         run: |
-          for script in scripts/deploy-jar.sh scripts/install-service.sh scripts/deploy-from-actions.sh; do
+          for script in scripts/deploy-jar.sh scripts/install-service.sh scripts/deploy-from-actions.sh scripts/tests/*.sh; do
             bash -n "$script"
           done
-          python3 -m unittest discover -s scripts/tests -v
+          bash scripts/tests/deploy-jar-test.sh
 
       - name: Upload test reports
         if: ${{ always() && !cancelled() }}

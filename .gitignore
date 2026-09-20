@@ -41,4 +41,3 @@ out/
 *.env
 *.env.*
 *.pem
-__pycache__/
