@@ -10,5 +10,5 @@ spring:
       ddl-auto: ${JPA_DDL_AUTO:update}
     open-in-view: false
 tago:
-  base-url: ${TAGO_BASE_URL:https://apis.data.go.kr/1613000/TrainInfoService}
+  base-url: ${TAGO_BASE_URL:https://apis.data.go.kr/1613000/TrainInfo}
   service-key: ${TAGO_SERVICE_KEY:}
