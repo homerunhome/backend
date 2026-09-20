@@ -50,6 +50,21 @@ public class Itinerary {
     @Column(name = "departure_at", nullable = false)
     private LocalDateTime departureAt;
 
+    @Column(name = "travel_mode", length = 30)
+    private String travelMode;
+
+    @Column(name = "stadium_entry_buffer_minutes")
+    private Integer stadiumEntryBufferMinutes;
+
+    @Column(name = "stadium_arrival_at")
+    private LocalDateTime stadiumArrivalAt;
+
+    @Column(name = "game_start_slack_minutes")
+    private Long gameStartSlackMinutes;
+
+    @Column(name = "plan_status", length = 40)
+    private String planStatus;
+
     @ElementCollection
     @CollectionTable(name = "itinerary_preferences", joinColumns = @JoinColumn(name = "itinerary_id"))
     @Column(name = "preference", nullable = false, length = 50)
@@ -63,6 +78,19 @@ public class Itinerary {
     @Getter(AccessLevel.NONE)
     private List<ItineraryPlace> places = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "itinerary_plan_warnings", joinColumns = @JoinColumn(name = "itinerary_id"))
+    @Column(name = "warning_code", nullable = false, length = 50)
+    @OrderColumn(name = "warning_order")
+    @Getter(AccessLevel.NONE)
+    private List<String> planWarnings = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "itinerary_timeline", joinColumns = @JoinColumn(name = "itinerary_id"))
+    @OrderColumn(name = "entry_order")
+    @Getter(AccessLevel.NONE)
+    private List<ItineraryTimelineEntry> timeline = new ArrayList<>();
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private Instant createdAt;
@@ -75,7 +103,14 @@ public class Itinerary {
             String departurePlace,
             LocalDateTime departureAt,
             List<String> preferences,
-            List<ItineraryPlace> places) {
+            List<ItineraryPlace> places,
+            String travelMode,
+            Integer stadiumEntryBufferMinutes,
+            LocalDateTime stadiumArrivalAt,
+            Long gameStartSlackMinutes,
+            String planStatus,
+            List<String> planWarnings,
+            List<ItineraryTimelineEntry> timeline) {
         this.game = game;
         this.arrivalPlace = arrivalPlace;
         this.arrivalAt = arrivalAt;
@@ -83,6 +118,44 @@ public class Itinerary {
         this.departureAt = departureAt;
         this.preferences = new ArrayList<>(preferences);
         this.places = new ArrayList<>(places);
+        this.travelMode = travelMode;
+        this.stadiumEntryBufferMinutes = stadiumEntryBufferMinutes;
+        this.stadiumArrivalAt = stadiumArrivalAt;
+        this.gameStartSlackMinutes = gameStartSlackMinutes;
+        this.planStatus = planStatus;
+        this.planWarnings = new ArrayList<>(planWarnings);
+        this.timeline = new ArrayList<>(timeline);
+    }
+
+    public void update(
+            Game game,
+            String arrivalPlace,
+            LocalDateTime arrivalAt,
+            String departurePlace,
+            LocalDateTime departureAt,
+            List<String> preferences,
+            List<ItineraryPlace> places,
+            String travelMode,
+            Integer stadiumEntryBufferMinutes,
+            LocalDateTime stadiumArrivalAt,
+            Long gameStartSlackMinutes,
+            String planStatus,
+            List<String> planWarnings,
+            List<ItineraryTimelineEntry> timeline) {
+        this.game = game;
+        this.arrivalPlace = arrivalPlace;
+        this.arrivalAt = arrivalAt;
+        this.departurePlace = departurePlace;
+        this.departureAt = departureAt;
+        this.preferences = new ArrayList<>(preferences);
+        this.places = new ArrayList<>(places);
+        this.travelMode = travelMode;
+        this.stadiumEntryBufferMinutes = stadiumEntryBufferMinutes;
+        this.stadiumArrivalAt = stadiumArrivalAt;
+        this.gameStartSlackMinutes = gameStartSlackMinutes;
+        this.planStatus = planStatus;
+        this.planWarnings = new ArrayList<>(planWarnings);
+        this.timeline = new ArrayList<>(timeline);
     }
 
     public List<String> getPreferences() {
@@ -91,5 +164,13 @@ public class Itinerary {
 
     public List<ItineraryPlace> getPlaces() {
         return List.copyOf(places);
+    }
+
+    public List<String> getPlanWarnings() {
+        return List.copyOf(planWarnings);
+    }
+
+    public List<ItineraryTimelineEntry> getTimeline() {
+        return List.copyOf(timeline);
     }
 }

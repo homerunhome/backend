@@ -26,6 +26,7 @@ import org.zerozero.homerunhome.common.BusinessException;
 import org.zerozero.homerunhome.common.ErrorCode;
 import org.zerozero.homerunhome.kakao.client.local.KakaoLocalClient;
 import org.zerozero.homerunhome.kakao.client.mobility.KakaoMobilityClient;
+import org.zerozero.homerunhome.kakao.client.routing.KakaoMapRoutingClient;
 import org.zerozero.homerunhome.kakao.client.support.KakaoClientExecutor;
 import org.zerozero.homerunhome.kakao.dto.common.KakaoCoordinate;
 import org.zerozero.homerunhome.kakao.dto.common.KakaoMapBounds;
@@ -55,9 +56,11 @@ class KakaoApiClientTest {
         localServer = MockRestServiceServer.bindTo(localBuilder).build();
         mobilityServer = MockRestServiceServer.bindTo(mobilityBuilder).build();
         KakaoClientExecutor executor = new KakaoClientExecutor(API_KEY);
+        RestClient localRestClient = localBuilder.build();
         client = new KakaoApiClient(
-                new KakaoLocalClient(localBuilder.build(), executor),
-                new KakaoMobilityClient(mobilityBuilder.build(), executor));
+                new KakaoLocalClient(localRestClient, executor),
+                new KakaoMobilityClient(mobilityBuilder.build(), executor),
+                new KakaoMapRoutingClient(localRestClient, executor));
     }
 
     @Test
@@ -303,11 +306,59 @@ class KakaoApiClientTest {
     }
 
     @Test
+    void findsWalkingRouteDurationThroughKakaoMapsRestApi() {
+        KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
+        KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/walk")))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "KakaoAK " + API_KEY))
+                .andExpect(queryParam("start_x", "127.434"))
+                .andExpect(queryParam("start_y", "36.332"))
+                .andExpect(queryParam("end_x", "127.429"))
+                .andExpect(queryParam("end_y", "36.317"))
+                .andRespond(withSuccess(
+                        """
+                        {"status":"OK","route":{"properties":{"totalDistance":4025,"totalTime":3914},"legs":[]}}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        assertEquals(Duration.ofSeconds(3914), client.findWalkingTime(new KakaoRouteRequest(origin, destination)));
+        localServer.verify();
+    }
+
+    @Test
+    void selectsFastestPublicTransitRouteFromKakaoMapsResponse() {
+        KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
+        KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andExpect(queryParam("start_x", "127.434"))
+                .andExpect(queryParam("start_y", "36.332"))
+                .andExpect(queryParam("end_x", "127.429"))
+                .andExpect(queryParam("end_y", "36.317"))
+                .andRespond(withSuccess(
+                        """
+                        {
+                          "status":"OK",
+                          "properties":{"total":2,"bus":1,"subway":1},
+                          "routes":[
+                            {"properties":{"type":"BUS","totalDistance":5013,"totalTime":2115,"transfers":0},"steps":[]},
+                            {"properties":{"type":"SUBWAY","totalDistance":4000,"totalTime":1800,"transfers":1},"steps":[]}
+                          ]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        assertEquals(
+                Duration.ofSeconds(1800), client.findPublicTransitTime(new KakaoRouteRequest(origin, destination)));
+        localServer.verify();
+    }
+
+    @Test
     void failsBeforeCallingProviderWhenApiKeyIsMissing() {
         KakaoClientExecutor executor = new KakaoClientExecutor(" ");
         KakaoApiClient clientWithoutKey = new KakaoApiClient(
                 new KakaoLocalClient(RestClient.create(), executor),
-                new KakaoMobilityClient(RestClient.create(), executor));
+                new KakaoMobilityClient(RestClient.create(), executor),
+                new KakaoMapRoutingClient(RestClient.create(), executor));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,

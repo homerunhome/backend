@@ -2,6 +2,7 @@ package org.zerozero.homerunhome.itinerary;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -104,6 +105,64 @@ class ItineraryApiIntegrationTests {
     }
 
     @Test
+    void updatesSavedItinerary() throws Exception {
+        String location = mockMvc.perform(post("/api/itineraries")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "arrivalPlace":"대전역",
+                                  "arrivalAt":"2026-09-20T12:00:00",
+                                  "departurePlace":"서울역",
+                                  "departureAt":"2026-09-20T23:30:00"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getHeader("Location");
+        String id = location.substring(location.lastIndexOf('/') + 1);
+
+        mockMvc.perform(put("/api/itineraries/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "arrivalPlace":"대전역",
+                                  "arrivalAt":"2026-09-20T12:00:00",
+                                  "departurePlace":"서울역",
+                                  "departureAt":"2026-09-20T23:30:00",
+                                  "preferences":["FOOD","CAFE"],
+                                  "places":[
+                                    {"placeId":"place-2","name":"수정한 장소","address":"대전시","latitude":36.3,"longitude":127.4,"arrivesAt":"2026-09-20T13:00:00","departsAt":"2026-09-20T14:00:00","stayDurationMinutes":60,"mustVisit":true,"scheduled":true}
+                                  ],
+                                  "travelMode":"WALK",
+                                  "stadiumEntryBufferMinutes":30,
+                                  "stadiumArrivalAt":"2026-09-20T15:00:00",
+                                  "gameStartSlackMinutes":180,
+                                  "status":"AMPLE",
+                                  "warnings":[],
+                                  "timeline":[
+                                    {"type":"ARRIVAL_TRANSFER","description":"대전역","startsAt":"2026-09-20T12:00:00","endsAt":"2026-09-20T12:00:00"},
+                                    {"type":"PLACE_VISIT","description":"수정한 장소","startsAt":"2026-09-20T13:00:00","endsAt":"2026-09-20T14:00:00"},
+                                    {"type":"STADIUM_ARRIVAL","description":"대전 한화생명 볼파크","startsAt":"2026-09-20T15:00:00","endsAt":"2026-09-20T15:00:00"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(Long.valueOf(id)))
+                .andExpect(jsonPath("$.places[0].mustVisit").value(true))
+                .andExpect(jsonPath("$.places[0].stayDurationMinutes").value(60));
+
+        mockMvc.perform(get("/api/itineraries/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.travelMode").value("WALK"))
+                .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T15:00:00"))
+                .andExpect(jsonPath("$.warnings.length()").value(0))
+                .andExpect(jsonPath("$.timeline[1].description").value("수정한 장소"));
+    }
+
+    @Test
     void rejectsInvalidDateFormat() throws Exception {
         mockMvc.perform(post("/api/itineraries")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -142,6 +201,7 @@ class ItineraryApiIntegrationTests {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/itineraries'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/itineraries/{id}'].put").exists())
                 .andExpect(jsonPath("$.paths['/api/itineraries/{id}'].get").exists());
 
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
