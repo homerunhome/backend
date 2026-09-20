@@ -83,12 +83,22 @@ public class KakaoLocalClient {
     public KakaoSearchResult<KakaoPlace> searchPlacesByCategory(KakaoCategoryPlaceSearchRequest request) {
         return executor.execute("categoryPlaceSearch", () -> {
             var response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder.path("/v2/local/search/category.json")
-                            .queryParam("category_group_code", request.categoryGroupCode())
-                            .queryParam("rect", request.bounds().apiValue())
-                            .queryParam("page", request.page())
-                            .queryParam("size", request.size())
-                            .build())
+                    .uri(uriBuilder -> {
+                        var builder = uriBuilder.path("/v2/local/search/category.json")
+                                .queryParam("category_group_code", request.categoryGroupCode())
+                                .queryParam("page", request.page())
+                                .queryParam("size", request.size());
+                        if (request.center() != null) {
+                            builder.queryParam("x", request.center().longitude().toPlainString())
+                                    .queryParam("y", request.center().latitude().toPlainString())
+                                    .queryParam("radius", request.radiusMeters())
+                                    .queryParam("sort", "distance");
+                        }
+                        if (request.bounds() != null) {
+                            builder.queryParam("rect", request.bounds().apiValue());
+                        }
+                        return builder.build();
+                    })
                     .retrieve()
                     .body(PLACE_RESPONSE_TYPE);
             return mapPlaces(response);

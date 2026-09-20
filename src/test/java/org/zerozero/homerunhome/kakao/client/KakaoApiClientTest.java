@@ -170,6 +170,29 @@ class KakaoApiClientTest {
     }
 
     @Test
+    void searchesPlacesByCategoryAroundCoordinate() {
+        localServer.expect(requestTo(Matchers.containsString("/v2/local/search/category.json")))
+                .andExpect(queryParam("category_group_code", "CE7"))
+                .andExpect(queryParam("x", "127.429188"))
+                .andExpect(queryParam("y", "36.317067"))
+                .andExpect(queryParam("radius", "1500"))
+                .andExpect(queryParam("sort", "distance"))
+                .andRespond(withSuccess(
+                        """
+                        {"meta":{"total_count":0,"pageable_count":0,"is_end":true},"documents":[]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+        KakaoCoordinate center =
+                new KakaoCoordinate(new BigDecimal("127.429188"), new BigDecimal("36.317067"));
+
+        var result = client.searchPlacesByCategory(
+                KakaoCategoryPlaceSearchRequest.around("CE7", center, 1500, 1, 15));
+
+        assertThat(result.items()).isEmpty();
+        localServer.verify();
+    }
+
+    @Test
     void appliesCategoryAndMapBoundsToKeywordSearch() {
         localServer.expect(requestTo(Matchers.containsString("/v2/local/search/keyword.json")))
                 .andExpect(queryParam("query", UriUtils.encode("성심당", StandardCharsets.UTF_8)))
