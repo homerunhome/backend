@@ -29,12 +29,17 @@ public class ItineraryController {
     private final ItineraryService itineraryService;
 
     @PostMapping
-    @Operation(summary = "원정 일정 생성", description = "경기, 교통편, 성향 및 장소 순서를 저장합니다.")
+    @Operation(summary = "원정 일정 생성", description = "선택한 경기, 교통편, 성향 및 장소 순서를 저장합니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "일정 생성 성공"),
         @ApiResponse(
                 responseCode = "400",
                 description = "요청 값 검증 실패",
+                content = @io.swagger.v3.oas.annotations.media.Content(
+                        schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ApiErrorResponse.class))),
+        @ApiResponse(
+                responseCode = "404",
+                description = "선택한 경기를 찾을 수 없음",
                 content = @io.swagger.v3.oas.annotations.media.Content(
                         schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ApiErrorResponse.class)))
     })

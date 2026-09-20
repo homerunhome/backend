@@ -6,25 +6,13 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 
-@Schema(description = "원정 일정 생성 요청")
+@Schema(description = "선택한 경기로 원정 일정 생성 요청")
 public record ItineraryRequest(
         @Schema(description = "경기 식별자", example = "game-2026-09-20-001")
         @NotBlank @Size(max = 100) String gameId,
-        @Schema(description = "경기 날짜", example = "2026-09-20")
-        @NotNull LocalDate gameDate,
-        @Schema(description = "경기 시작 시각", example = "18:30:00")
-        @NotNull LocalTime gameStartTime,
-        @Schema(description = "구장 이름", example = "잠실야구장")
-        @NotBlank @Size(max = 150) String stadium,
-        @Schema(description = "홈 팀", example = "두산 베어스")
-        @NotBlank @Size(max = 100) String homeTeam,
-        @Schema(description = "원정 팀", example = "롯데 자이언츠")
-        @NotBlank @Size(max = 100) String awayTeam,
         @Schema(description = "도착 장소", example = "서울역")
         @NotBlank @Size(max = 200) String arrivalPlace,
         @Schema(description = "도착 일시", example = "2026-09-20T12:00:00")

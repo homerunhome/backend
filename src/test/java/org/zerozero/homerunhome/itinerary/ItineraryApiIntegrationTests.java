@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.zerozero.homerunhome.game.domain.Game;
+import org.zerozero.homerunhome.game.repository.GameRepository;
 import org.zerozero.homerunhome.itinerary.repository.ItineraryRepository;
 
 @SpringBootTest
@@ -27,11 +31,24 @@ class ItineraryApiIntegrationTests {
     @Autowired
     private ItineraryRepository itineraryRepository;
 
+    @Autowired
+    private GameRepository gameRepository;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         itineraryRepository.deleteAll();
+        gameRepository.deleteAll();
+        gameRepository.save(Game.builder()
+                .gameId("game-2026-09-20-001")
+                .city("대전")
+                .gameDate(LocalDate.of(2026, 9, 20))
+                .gameStartTime(LocalTime.of(18, 30))
+                .stadium("대전 한화생명 볼파크")
+                .homeTeam("한화 이글스")
+                .awayTeam("롯데 자이언츠")
+                .build());
         mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
     }
 
@@ -40,11 +57,6 @@ class ItineraryApiIntegrationTests {
         String request = """
                 {
                   "gameId": "game-2026-09-20-001",
-                  "gameDate": "2026-09-20",
-                  "gameStartTime": "18:30:00",
-                  "stadium": "잠실야구장",
-                  "homeTeam": "두산 베어스",
-                  "awayTeam": "롯데 자이언츠",
                   "arrivalPlace": "서울역",
                   "arrivalAt": "2026-09-20T12:00:00",
                   "departurePlace": "서울역",
@@ -72,6 +84,8 @@ class ItineraryApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gameId").value("game-2026-09-20-001"))
                 .andExpect(jsonPath("$.gameDate").value("2026-09-20"))
+                .andExpect(jsonPath("$.stadium").value("대전 한화생명 볼파크"))
+                .andExpect(jsonPath("$.homeTeam").value("한화 이글스"))
                 .andExpect(jsonPath("$.arrivalPlace").value("서울역"))
                 .andExpect(jsonPath("$.preferences[0]").value("FOOD"))
                 .andExpect(jsonPath("$.places.length()").value(2))
@@ -94,10 +108,19 @@ class ItineraryApiIntegrationTests {
         mockMvc.perform(post("/api/itineraries")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"gameId":"g1","gameDate":"20-09-2026"}
+                                {"gameId":"g1","arrivalAt":"20-09-2026"}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void rejectsUnknownSelectedGame() throws Exception {
+        mockMvc.perform(post("/api/itineraries")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"gameId\":\"unknown-game\",\"arrivalPlace\":\"서울역\",\"arrivalAt\":\"2026-09-20T12:00:00\",\"departurePlace\":\"서울역\",\"departureAt\":\"2026-09-20T23:30:00\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
     }
 
     @Test

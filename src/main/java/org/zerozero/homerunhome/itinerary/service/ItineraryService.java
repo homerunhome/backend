@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.zerozero.homerunhome.common.BusinessException;
 import org.zerozero.homerunhome.common.ErrorCode;
+import org.zerozero.homerunhome.game.domain.Game;
+import org.zerozero.homerunhome.game.repository.GameRepository;
 import org.zerozero.homerunhome.itinerary.domain.Itinerary;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryPlace;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
@@ -18,9 +20,12 @@ import org.zerozero.homerunhome.itinerary.repository.ItineraryRepository;
 public class ItineraryService {
 
     private final ItineraryRepository itineraryRepository;
+    private final GameRepository gameRepository;
 
     @Transactional
     public ItineraryResponse create(ItineraryRequest request) {
+        Game game = gameRepository.findById(request.gameId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.GAME_NOT_FOUND));
         List<String> preferences = request.preferences() == null ? List.of() : request.preferences();
         List<ItineraryPlace> places = request.places() == null
                 ? List.of()
@@ -34,12 +39,12 @@ public class ItineraryService {
                         .toList();
 
         Itinerary itinerary = Itinerary.builder()
-                .gameId(request.gameId())
-                .gameDate(request.gameDate())
-                .gameStartTime(request.gameStartTime())
-                .stadium(request.stadium())
-                .homeTeam(request.homeTeam())
-                .awayTeam(request.awayTeam())
+                .gameId(game.getGameId())
+                .gameDate(game.getGameDate())
+                .gameStartTime(game.getGameStartTime())
+                .stadium(game.getStadium())
+                .homeTeam(game.getHomeTeam())
+                .awayTeam(game.getAwayTeam())
                 .arrivalPlace(request.arrivalPlace())
                 .arrivalAt(request.arrivalAt())
                 .departurePlace(request.departurePlace())
