@@ -24,6 +24,7 @@ public record ItineraryPlanRequest(
         @NotNull @Min(0) @Max(1440) Integer postGameCrowdBufferMinutes,
         @NotNull @Min(0) @Max(1440) Integer boardingBufferMinutes,
         @Min(1) @Max(1440) Integer expectedGameDurationMinutes,
+        @Size(max = 10) List<@NotBlank @Size(max = 50) String> preferences,
         @Size(max = 30) List<@NotNull @Valid PlacePlanRequest> places) {
 
     @Schema(description = "방문 후보. 입력 순서대로 이동시간을 누적해 일정을 생성합니다.")

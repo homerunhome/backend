@@ -125,7 +125,7 @@ public class ItineraryService {
                 .arrivalAt(request.arrivalAt())
                 .departurePlace(request.departurePlace())
                 .departureAt(request.departureAt())
-                .preferences(List.of())
+                .preferences(request.preferences() == null ? List.of() : request.preferences())
                 .places(places)
                 .stadiumEntryBufferMinutes(request.stadiumEntryBufferMinutes())
                 .stadiumArrivalAt(stadiumArrivalAt)

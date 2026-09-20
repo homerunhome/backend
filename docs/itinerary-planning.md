@@ -22,6 +22,7 @@ Content-Type: application/json
   "postGameCrowdBufferMinutes": 30,
   "boardingBufferMinutes": 15,
   "expectedGameDurationMinutes": 180,
+  "preferences": ["FOOD", "CAFE"],
   "places": [
     {
       "placeId": "tour-api-content-id",
@@ -38,6 +39,8 @@ Content-Type: application/json
 ```
 
 `places`는 방문 순서대로 전달합니다. 첫 장소의 `travelFromPreviousMinutes`는 도착 교통편 장소에서 첫 장소까지의 시간이며, `finalLegToStadiumMinutes`는 마지막 장소에서 경기장까지의 시간입니다. 장소가 없으면 마지막 구간 시간은 도착 장소에서 경기장까지로 사용합니다. 시간 단위는 분입니다.
+
+`preferences`는 선택한 관광 성향 목록이며 생성된 일정에 저장되어 응답과 이후 조회에 포함됩니다. 장소 후보를 고르고 방문 순서를 정하는 기능은 수행하지 않으므로, 요청의 `places`에는 이미 선택한 후보를 전달합니다.
 
 `expectedGameDurationMinutes`는 예상 경기 시간이며 생략하면 180분을 사용합니다. 응답의 `expectedGameEndAt`은 실제 종료 확정 시각이 아니며, `gameEndMayBeDelayed`와 경고를 통해 연장전 등으로 늦어질 수 있음을 알립니다.
 

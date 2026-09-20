@@ -110,6 +110,7 @@ class ItineraryApiIntegrationTests {
                                   "stadiumToDepartureMinutes":45,
                                   "postGameCrowdBufferMinutes":30,
                                   "boardingBufferMinutes":15,
+                                  "preferences":["FOOD","CAFE"],
                                   "places":[
                                     {"placeId":"tour-1","name":"한밭수목원","travelFromPreviousMinutes":20,"stayDurationMinutes":60,"mustVisit":true},
                                     {"placeId":"food-1","name":"식당","travelFromPreviousMinutes":15,"stayDurationMinutes":45}
@@ -123,6 +124,8 @@ class ItineraryApiIntegrationTests {
                 .andExpect(jsonPath("$.stadiumDepartureRecommendedAt").value("2026-09-20T23:00:00"))
                 .andExpect(jsonPath("$.expectedGameEndAt").value("2026-09-20T21:30:00"))
                 .andExpect(jsonPath("$.gameEndMayBeDelayed").value(true))
+                .andExpect(jsonPath("$.preferences[0]").value("FOOD"))
+                .andExpect(jsonPath("$.preferences[1]").value("CAFE"))
                 .andExpect(jsonPath("$.status").value("AMPLE"))
                 .andExpect(jsonPath("$.places[0].arrivesAt").value("2026-09-20T12:20:00"))
                 .andExpect(jsonPath("$.places[1].arrivesAt").value("2026-09-20T13:35:00"))
@@ -135,6 +138,7 @@ class ItineraryApiIntegrationTests {
         mockMvc.perform(get("/api/itineraries/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expectedGameEndAt").value("2026-09-20T21:30:00"))
+                .andExpect(jsonPath("$.preferences[0]").value("FOOD"))
                 .andExpect(jsonPath("$.gameEndMayBeDelayed").value(true));
     }
 
