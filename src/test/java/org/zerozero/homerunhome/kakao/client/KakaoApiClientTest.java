@@ -28,7 +28,9 @@ import org.zerozero.homerunhome.kakao.client.local.KakaoLocalClient;
 import org.zerozero.homerunhome.kakao.client.mobility.KakaoMobilityClient;
 import org.zerozero.homerunhome.kakao.client.support.KakaoClientExecutor;
 import org.zerozero.homerunhome.kakao.dto.common.KakaoCoordinate;
+import org.zerozero.homerunhome.kakao.dto.common.KakaoMapBounds;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoAddressSearchRequest;
+import org.zerozero.homerunhome.kakao.dto.request.KakaoCategoryPlaceSearchRequest;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoPlaceSearchRequest;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoPlaceSearchSort;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoRouteRequest;
@@ -127,6 +129,65 @@ class KakaoApiClientTest {
         assertEquals("성심당 본점", result.items().getFirst().name());
         assertEquals(1194, result.items().getFirst().distanceMeters());
         assertEquals("FD6", result.items().getFirst().categoryGroupCode());
+        localServer.verify();
+    }
+
+    @Test
+    void searchesPlacesByCategoryInsideMapBounds() {
+        localServer.expect(requestTo(Matchers.containsString("/v2/local/search/category.json")))
+                .andExpect(queryParam("category_group_code", "FD6"))
+                .andExpect(queryParam("rect", "127.38,36.30,127.48,36.38"))
+                .andExpect(queryParam("page", "2"))
+                .andExpect(queryParam("size", "10"))
+                .andRespond(withSuccess(
+                        """
+                        {
+                          "meta":{"total_count":16,"pageable_count":16,"is_end":true},
+                          "documents":[{
+                            "id":"food-1",
+                            "place_name":"대전 음식점",
+                            "category_name":"음식점",
+                            "category_group_code":"FD6",
+                            "address_name":"대전 중구 은행동 1",
+                            "road_address_name":"대전 중구 중앙로 1",
+                            "x":"127.43",
+                            "y":"36.33"
+                          }]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON));
+        KakaoMapBounds bounds = new KakaoMapBounds(
+                new KakaoCoordinate(new BigDecimal("127.38"), new BigDecimal("36.30")),
+                new KakaoCoordinate(new BigDecimal("127.48"), new BigDecimal("36.38")));
+
+        var result = client.searchPlacesByCategory(
+                new KakaoCategoryPlaceSearchRequest("FD6", bounds, 2, 10));
+
+        assertEquals("대전 음식점", result.items().getFirst().name());
+        assertEquals("FD6", result.items().getFirst().categoryGroupCode());
+        assertThat(result.end()).isTrue();
+        localServer.verify();
+    }
+
+    @Test
+    void appliesCategoryAndMapBoundsToKeywordSearch() {
+        localServer.expect(requestTo(Matchers.containsString("/v2/local/search/keyword.json")))
+                .andExpect(queryParam("query", UriUtils.encode("성심당", StandardCharsets.UTF_8)))
+                .andExpect(queryParam("category_group_code", "FD6"))
+                .andExpect(queryParam("rect", "127.38,36.30,127.48,36.38"))
+                .andRespond(withSuccess(
+                        """
+                        {"meta":{"total_count":0,"pageable_count":0,"is_end":true},"documents":[]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+        KakaoMapBounds bounds = new KakaoMapBounds(
+                new KakaoCoordinate(new BigDecimal("127.38"), new BigDecimal("36.30")),
+                new KakaoCoordinate(new BigDecimal("127.48"), new BigDecimal("36.38")));
+
+        var result = client.searchPlaces(new KakaoPlaceSearchRequest(
+                "성심당", null, null, "FD6", bounds, KakaoPlaceSearchSort.ACCURACY, 1, 15));
+
+        assertThat(result.items()).isEmpty();
         localServer.verify();
     }
 
