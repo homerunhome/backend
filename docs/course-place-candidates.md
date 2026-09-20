@@ -42,6 +42,7 @@ Content-Type: application/json
 | `scope` | 예 | 검색 위치 범위 |
 | `categories` | 예 | 한 개 이상의 장소 카테고리 |
 | `center` | 조건부 | 현재 위치·기존 코스·직접 지정 범위에서 필수 |
+| `coursePoints` | 조건부 | `COURSE_NEARBY`에서 기존 코스 좌표를 최대 10개까지 전달 |
 | `hotspot` | 조건부 | `DAEJEON_HOTSPOT`에서 필수 |
 | `keyword` | 아니요 | 장소명 검색어, 최대 100자 |
 | `maxDistanceMeters` | 아니요 | 1~20,000m |
@@ -55,7 +56,7 @@ Content-Type: application/json
 | `STADIUM_NEARBY` | 대전 한화생명 볼파크 | 1,500m |
 | `STATION_NEARBY` | 대전역 | 1,000m |
 | `CURRENT_LOCATION` | `center` | 1,000m |
-| `COURSE_NEARBY` | 기존 코스 장소의 `center` | 1,000m |
+| `COURSE_NEARBY` | 기존 코스의 `coursePoints`, 없으면 `center` | 각 좌표 1,000m |
 | `CUSTOM` | 사용자가 지정한 `center` | 1,000m |
 | `DAEJEON_HOTSPOT` | 선택한 `hotspot` | 명소별 기본 반경 |
 
@@ -75,6 +76,24 @@ Content-Type: application/json
 
 TourAPI 관광지와 문화시설은 `locationBasedList2`를 이용해 중심 좌표 주변을 조회합니다. 행사는 `searchFestival2`로 날짜에 맞는 대전 행사를 조회한 뒤 중심 좌표와의 거리를 적용합니다.
 
+카테고리는 여러 개를 함께 선택할 수 있습니다. 결과는 모든 카테고리와 검색 중심점의 후보를 합치고 중복을 제거한 뒤 거리순으로 반환합니다. 카카오와 TourAPI는 저장 수·리뷰 수를 제공하지 않으므로 인기순 정렬은 제공하지 않습니다. 카카오 결과가 한 페이지 15개를 넘으면 `limit`을 채우는 데 필요한 다음 페이지까지 조회합니다.
+
+## 기존 코스 전체 주변 요청 예시
+
+```json
+{
+  "scope": "COURSE_NEARBY",
+  "categories": ["FOOD", "CAFE", "TOURIST_ATTRACTION"],
+  "coursePoints": [
+    {"latitude": 36.3322, "longitude": 127.4345},
+    {"latitude": 36.3277, "longitude": 127.4273},
+    {"latitude": 36.317067, "longitude": 127.429188}
+  ],
+  "maxDistanceMeters": 1000,
+  "limit": 30
+}
+```
+
 ## 현재 위치 요청 예시
 
 ```json
@@ -85,6 +104,9 @@ TourAPI 관광지와 문화시설은 `locationBasedList2`를 이용해 중심 �
     "latitude": 36.3504,
     "longitude": 127.3845
   },
+  "searchCenters": [
+    {"latitude": 36.317067, "longitude": 127.429188}
+  ],
   "maxDistanceMeters": 1500,
   "limit": 20
 }
@@ -107,10 +129,13 @@ TourAPI 관광지와 문화시설은 `locationBasedList2`를 이용해 중심 �
       "name": "추천 맛집",
       "category": "FOOD",
       "address": "대전 중구 대종로",
+      "phone": "042-123-4567",
       "latitude": 36.318,
       "longitude": 127.43,
       "imageUrl": null,
       "detailUrl": "https://place.map.kakao.com/123456789",
+      "eventStartDate": null,
+      "eventEndDate": null,
       "distanceMeters": 130
     },
     {
@@ -119,10 +144,13 @@ TourAPI 관광지와 문화시설은 `locationBasedList2`를 이용해 중심 �
       "name": "한밭수목원",
       "category": "TOURIST_ATTRACTION",
       "address": "대전 서구 둔산대로 169",
+      "phone": "042-123-4567",
       "latitude": 36.366,
       "longitude": 127.388,
       "imageUrl": "https://example.com/image.jpg",
       "detailUrl": "/api/tourism/contents/125407",
+      "eventStartDate": null,
+      "eventEndDate": null,
       "distanceMeters": 850
     }
   ]
