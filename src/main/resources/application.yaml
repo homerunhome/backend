@@ -12,6 +12,12 @@ spring:
 tago:
   base-url: ${TAGO_BASE_URL:https://apis.data.go.kr/1613000/TrainInfo}
   service-key: ${TAGO_SERVICE_KEY:}
+tour-api:
+  base-url: ${TOUR_API_BASE_URL:https://apis.data.go.kr/B551011}
+  service-key: ${TOUR_API_SERVICE_KEY:}
+  mobile-app: ${TOUR_API_MOBILE_APP:HomerunHome}
+  connect-timeout: ${TOUR_API_CONNECT_TIMEOUT:2s}
+  read-timeout: ${TOUR_API_READ_TIMEOUT:5s}
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY:}
   local-base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
