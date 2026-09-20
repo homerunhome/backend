@@ -57,8 +57,29 @@ class TravelTimeControllerTest {
     }
 
     @Test
+    void returnsPublicTransitTimeAndDistance() throws Exception {
+        TravelTimeRequest request = request(TravelMode.PUBLIC_TRANSIT);
+        when(service.findTravelTime(request))
+                .thenReturn(new TravelTimeResponse(TravelMode.PUBLIC_TRANSIT, 2115, 5013));
+
+        mockMvc.perform(post("/api/travel-times")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "origin":{"latitude":37.5121,"longitude":127.0719},
+                                  "destination":{"latitude":37.4982,"longitude":127.0276},
+                                  "transportMode":"PUBLIC_TRANSIT"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transportMode").value("PUBLIC_TRANSIT"))
+                .andExpect(jsonPath("$.durationSeconds").value(2115))
+                .andExpect(jsonPath("$.distanceMeters").value(5013));
+    }
+
+    @Test
     void returnsUnsupportedTravelModeSeparately() throws Exception {
-        TravelTimeRequest request = request(TravelMode.WALK);
+        TravelTimeRequest request = request(TravelMode.BICYCLE);
         when(service.findTravelTime(request))
                 .thenThrow(new BusinessException(ErrorCode.UNSUPPORTED_TRAVEL_MODE));
 
@@ -68,7 +89,7 @@ class TravelTimeControllerTest {
                                 {
                                   "origin":{"latitude":37.5121,"longitude":127.0719},
                                   "destination":{"latitude":37.4982,"longitude":127.0276},
-                                  "transportMode":"WALK"
+                                  "transportMode":"BICYCLE"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())

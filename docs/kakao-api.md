@@ -78,7 +78,7 @@ KakaoPlaceSearchRequest request = new KakaoPlaceSearchRequest(
         15);
 ```
 
-`KakaoRoute.travelMode()`은 항상 `CAR`입니다. 카카오 모빌리티 길찾기 API가 제공하는 자동차 기준 거리와 소요시간이며, 대중교통 막차나 대중교통 이동시간으로 사용하면 안 됩니다. 대중교통 계산은 별도 제공자 연동이 필요합니다.
+`KakaoRoute`는 카카오모빌리티 자동차 경로 정보입니다. 공통 [`/api/travel-times`](travel-time.md) API는 이 경로 외에도 카카오맵 REST API로 도보와 대중교통의 거리·소요시간을 조회합니다. 대중교통 결과는 경로 소요시간이며 열차 시간표나 막차 조회는 TAGO 열차 API에서 별도로 처리합니다.
 
 ## 오류 구분
 

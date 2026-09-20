@@ -181,6 +181,46 @@ class ItineraryApiIntegrationTests {
     }
 
     @Test
+    void generatesOptimizedCourseUsingActualDirectedTravelTimes() throws Exception {
+        mockMvc.perform(post("/api/itineraries/generate/optimized")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "arrivalPlace":"대전역",
+                                  "arrivalAt":"2026-09-20T12:00:00",
+                                  "departurePlace":"대전역",
+                                  "departureAt":"2026-09-21T00:30:00",
+                                  "stadiumEntryBufferMinutes":30,
+                                  "stadiumToDepartureMinutes":45,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "travelMode":"PUBLIC_TRANSIT",
+                                  "places":[
+                                    {"placeId":"place-a","name":"장소 A","stayDurationMinutes":30},
+                                    {"placeId":"place-b","name":"장소 B","stayDurationMinutes":30}
+                                  ],
+                                  "travelTimes":[
+                                    {"fromPlaceId":"ARRIVAL","toPlaceId":"place-a","minutes":1},
+                                    {"fromPlaceId":"ARRIVAL","toPlaceId":"place-b","minutes":5},
+                                    {"fromPlaceId":"place-a","toPlaceId":"place-b","minutes":100},
+                                    {"fromPlaceId":"place-b","toPlaceId":"place-a","minutes":1},
+                                    {"fromPlaceId":"place-a","toPlaceId":"STADIUM","minutes":1},
+                                    {"fromPlaceId":"place-b","toPlaceId":"STADIUM","minutes":1}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.travelMode").value("PUBLIC_TRANSIT"))
+                .andExpect(jsonPath("$.places.length()").value(2))
+                .andExpect(jsonPath("$.places[0].placeId").value("place-b"))
+                .andExpect(jsonPath("$.places[0].travelFromPreviousMinutes").value(5))
+                .andExpect(jsonPath("$.places[1].placeId").value("place-a"))
+                .andExpect(jsonPath("$.places[1].travelFromPreviousMinutes").value(1))
+                .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T13:07:00"));
+    }
+
+    @Test
     void returnsOvertimeAndTravelWarningsWhenPlanDoesNotFit() throws Exception {
         mockMvc.perform(post("/api/itineraries/generate")
                         .contentType(MediaType.APPLICATION_JSON)

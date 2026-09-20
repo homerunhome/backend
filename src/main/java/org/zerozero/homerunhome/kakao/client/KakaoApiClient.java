@@ -1,6 +1,5 @@
 package org.zerozero.homerunhome.kakao.client;
 
-import java.time.Duration;
 import org.springframework.stereotype.Component;
 import org.zerozero.homerunhome.kakao.client.local.KakaoLocalClient;
 import org.zerozero.homerunhome.kakao.client.mobility.KakaoMobilityClient;
@@ -13,6 +12,7 @@ import org.zerozero.homerunhome.kakao.dto.request.KakaoRouteRequest;
 import org.zerozero.homerunhome.kakao.dto.response.KakaoAddress;
 import org.zerozero.homerunhome.kakao.dto.response.KakaoPlace;
 import org.zerozero.homerunhome.kakao.dto.response.KakaoRoute;
+import org.zerozero.homerunhome.kakao.dto.response.KakaoTravelRoute;
 
 @Component
 public class KakaoApiClient {
@@ -46,11 +46,11 @@ public class KakaoApiClient {
         return mobilityClient.findDrivingRoute(request);
     }
 
-    public Duration findWalkingTime(KakaoRouteRequest request) {
-        return mapRoutingClient.findWalkingTime(request);
+    public KakaoTravelRoute findWalkingRoute(KakaoRouteRequest request) {
+        return mapRoutingClient.findWalkingRoute(request);
     }
 
-    public Duration findPublicTransitTime(KakaoRouteRequest request) {
-        return mapRoutingClient.findPublicTransitTime(request);
+    public KakaoTravelRoute findPublicTransitRoute(KakaoRouteRequest request) {
+        return mapRoutingClient.findPublicTransitRoute(request);
     }
 }

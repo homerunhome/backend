@@ -62,13 +62,48 @@ Content-Type: application/json
 
 `expectedGameDurationMinutes`는 예상 경기 시간이며 생략하면 180분을 사용합니다. 응답의 `expectedGameEndAt`은 실제 종료 확정 시각이 아니며, `gameEndMayBeDelayed`와 경고를 통해 연장전 등으로 늦어질 수 있음을 알립니다.
 
+## 실제 이동시간 기반 자동 순서 생성
+
+`POST /api/itineraries/generate/optimized`는 이미 선택한 장소 후보 최대 8곳을 모두 방문하도록 구간별 실제 이동시간 합계가 가장 짧은 순서를 계산한 뒤 일정을 저장합니다. 장소 검색·추천은 하지 않습니다. 호출자는 공통 [`POST /api/travel-times`](travel-time.md) API로 구한 이동시간을 `travelTimes`에 전달합니다.
+
+`travelTimes`에는 방향별 구간이 빠짐없이 있어야 합니다. `ARRIVAL`에서 각 후보까지, 각 후보에서 다른 후보까지, 각 후보에서 `STADIUM`까지의 시간입니다. 후보가 없으면 `ARRIVAL`에서 `STADIUM`까지 한 구간만 보냅니다. 분 단위 정수로 보내며, 공통 API가 초 단위로 반환한 시간은 분으로 올림해 전달합니다. 대중교통처럼 방향에 따라 시간이 다를 수 있으므로 역방향 구간은 별도로 조회합니다.
+
+```json
+{
+  "gameId": "game-2026-09-20-001",
+  "arrivalPlace": "대전역",
+  "arrivalAt": "2026-09-20T12:00:00",
+  "departurePlace": "대전역",
+  "departureAt": "2026-09-20T23:30:00",
+  "stadiumEntryBufferMinutes": 30,
+  "stadiumToDepartureMinutes": 45,
+  "postGameCrowdBufferMinutes": 30,
+  "boardingBufferMinutes": 15,
+  "travelMode": "PUBLIC_TRANSIT",
+  "places": [
+    {"placeId": "place-a", "name": "장소 A", "stayDurationMinutes": 60},
+    {"placeId": "place-b", "name": "장소 B", "stayDurationMinutes": 45}
+  ],
+  "travelTimes": [
+    {"fromPlaceId": "ARRIVAL", "toPlaceId": "place-a", "minutes": 20},
+    {"fromPlaceId": "ARRIVAL", "toPlaceId": "place-b", "minutes": 15},
+    {"fromPlaceId": "place-a", "toPlaceId": "place-b", "minutes": 12},
+    {"fromPlaceId": "place-b", "toPlaceId": "place-a", "minutes": 18},
+    {"fromPlaceId": "place-a", "toPlaceId": "STADIUM", "minutes": 25},
+    {"fromPlaceId": "place-b", "toPlaceId": "STADIUM", "minutes": 10}
+  ]
+}
+```
+
+응답의 `places`는 계산된 방문 순서이며, 각 장소의 `travelFromPreviousMinutes`와 경기장까지 마지막 이동시간으로 도착·체류 시각을 계산합니다. 이동시간 구간이 누락되거나 중복되고, 후보 ID가 중복되거나 8곳을 넘으면 `INVALID_ITINERARY_PLAN_REQUEST`를 반환합니다. 이동시간이 같은 순서가 여러 개면 입력 후보 순서를 우선합니다.
+
 ## 저장된 일정 장소 편집
 
 `PUT /api/itineraries/{id}/places`는 저장된 일정의 장소 전체 목록을 요청 배열 순서로 교체합니다. 원하는 최종 목록을 보내면 장소 추가·삭제·교체·재정렬과 체류시간 변경이 한 번에 적용되고, 편집 후 시간표가 다시 계산됩니다. `places: []`를 보내면 방문 장소를 모두 삭제합니다.
 
 장소 편집은 저장된 왕편·귀가편 열차 선택을 유지합니다.
 
-장소는 [`/api/course-place-candidates`](course-place-candidates.md)의 후보 정보를 사용하고, 각 구간 이동시간은 공통 [`POST /api/travel-times`](travel-time.md) API의 결과를 분 단위로 전달합니다. 이 편집 API는 Kakao를 직접 호출하지 않습니다. 현재 공통 이동시간 API는 `CAR` 경로를 지원합니다. 첫 장소의 `travelFromPreviousMinutes`는 도착 장소에서 이동하는 시간이고, 나머지는 앞 장소에서 이동하는 시간입니다. 마지막 장소에서 경기장까지는 `finalLegToStadiumMinutes`로 전달합니다.
+장소는 [`/api/course-place-candidates`](course-place-candidates.md)의 후보 정보를 사용하고, 각 구간 이동시간은 공통 [`POST /api/travel-times`](travel-time.md) API의 결과를 분 단위로 전달합니다. 이 편집 API는 Kakao를 직접 호출하지 않습니다. 공통 이동시간 API는 자동차·도보·대중교통 경로를 지원합니다. 첫 장소의 `travelFromPreviousMinutes`는 도착 장소에서 이동하는 시간이고, 나머지는 앞 장소에서 이동하는 시간입니다. 마지막 장소에서 경기장까지는 `finalLegToStadiumMinutes`로 전달합니다.
 
 ```http
 PUT /api/itineraries/1/places

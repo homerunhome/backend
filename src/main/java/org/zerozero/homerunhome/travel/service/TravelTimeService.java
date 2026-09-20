@@ -8,6 +8,7 @@ import org.zerozero.homerunhome.kakao.client.KakaoApiClient;
 import org.zerozero.homerunhome.kakao.dto.common.KakaoCoordinate;
 import org.zerozero.homerunhome.kakao.dto.request.KakaoRouteRequest;
 import org.zerozero.homerunhome.kakao.dto.response.KakaoRoute;
+import org.zerozero.homerunhome.kakao.dto.response.KakaoTravelRoute;
 import org.zerozero.homerunhome.travel.dto.TravelCoordinate;
 import org.zerozero.homerunhome.travel.dto.TravelMode;
 import org.zerozero.homerunhome.travel.dto.TravelTimeRequest;
@@ -21,17 +22,24 @@ public class TravelTimeService {
 
     public TravelTimeResponse findTravelTime(TravelTimeRequest request) {
         validateRequest(request);
-        if (request.transportMode() != TravelMode.CAR) {
-            throw new BusinessException(ErrorCode.UNSUPPORTED_TRAVEL_MODE);
-        }
-
-        KakaoRoute route = kakaoApiClient.findDrivingRoute(new KakaoRouteRequest(
+        KakaoRouteRequest routeRequest = new KakaoRouteRequest(
                 toKakaoCoordinate(request.origin()),
-                toKakaoCoordinate(request.destination())));
-        return new TravelTimeResponse(
-                TravelMode.CAR,
-                route.duration().toSeconds(),
-                route.distanceMeters());
+                toKakaoCoordinate(request.destination()));
+        return switch (request.transportMode()) {
+            case CAR -> drivingResponse(kakaoApiClient.findDrivingRoute(routeRequest));
+            case WALK -> mapRouteResponse(TravelMode.WALK, kakaoApiClient.findWalkingRoute(routeRequest));
+            case PUBLIC_TRANSIT -> mapRouteResponse(
+                    TravelMode.PUBLIC_TRANSIT, kakaoApiClient.findPublicTransitRoute(routeRequest));
+            case BICYCLE -> throw new BusinessException(ErrorCode.UNSUPPORTED_TRAVEL_MODE);
+        };
+    }
+
+    private TravelTimeResponse drivingResponse(KakaoRoute route) {
+        return new TravelTimeResponse(TravelMode.CAR, route.duration().toSeconds(), route.distanceMeters());
+    }
+
+    private TravelTimeResponse mapRouteResponse(TravelMode mode, KakaoTravelRoute route) {
+        return new TravelTimeResponse(mode, route.duration().toSeconds(), route.distanceMeters());
     }
 
     private void validateRequest(TravelTimeRequest request) {
