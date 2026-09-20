@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
+import org.zerozero.homerunhome.travel.dto.TravelMode;
 
 @Schema(description = "저장된 일정의 장소와 경로시간 전체 교체 요청")
 public record ItineraryPlacesEditRequest(
@@ -19,6 +20,7 @@ public record ItineraryPlacesEditRequest(
         @NotNull @Min(0) @Max(1440) Long stadiumToDepartureMinutes,
         @NotNull @Min(0) @Max(1440) Integer postGameCrowdBufferMinutes,
         @NotNull @Min(0) @Max(1440) Integer boardingBufferMinutes,
+        TravelMode travelMode,
         @Min(1) @Max(1440) Integer expectedGameDurationMinutes,
         @NotNull @Size(max = 30) List<@NotNull @Valid PlaceEditRequest> places) {
 

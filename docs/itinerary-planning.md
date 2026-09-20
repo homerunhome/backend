@@ -37,6 +37,7 @@ Content-Type: application/json
   "stadiumToDepartureMinutes": 45,
   "postGameCrowdBufferMinutes": 30,
   "boardingBufferMinutes": 15,
+  "travelMode": "PUBLIC_TRANSIT",
   "expectedGameDurationMinutes": 180,
   "preferences": ["FOOD", "CAFE"],
   "places": [
@@ -101,7 +102,7 @@ Content-Type: application/json
 
 `PUT /api/itineraries/{id}/places`는 저장된 일정의 장소 전체 목록을 요청 배열 순서로 교체합니다. 원하는 최종 목록을 보내면 장소 추가·삭제·교체·재정렬과 체류시간 변경이 한 번에 적용되고, 편집 후 시간표가 다시 계산됩니다. `places: []`를 보내면 방문 장소를 모두 삭제합니다.
 
-장소 편집은 저장된 왕편·귀가편 열차 선택을 유지합니다.
+장소 편집은 저장된 왕편·귀가편 열차 선택을 유지합니다. `travelMode`에는 다시 계산할 이동수단을 전달하며, 생략하면 기존 이동수단을 유지합니다.
 
 장소는 [`/api/course-place-candidates`](course-place-candidates.md)의 후보 정보를 사용하고, 각 구간 이동시간은 공통 [`POST /api/travel-times`](travel-time.md) API의 결과를 분 단위로 전달합니다. 이 편집 API는 Kakao를 직접 호출하지 않습니다. 공통 이동시간 API는 자동차·도보·대중교통 경로를 지원합니다. 첫 장소의 `travelFromPreviousMinutes`는 도착 장소에서 이동하는 시간이고, 나머지는 앞 장소에서 이동하는 시간입니다. 마지막 장소에서 경기장까지는 `finalLegToStadiumMinutes`로 전달합니다.
 
@@ -117,6 +118,7 @@ Content-Type: application/json
   "stadiumToDepartureMinutes": 45,
   "postGameCrowdBufferMinutes": 30,
   "boardingBufferMinutes": 15,
+  "travelMode": "PUBLIC_TRANSIT",
   "expectedGameDurationMinutes": 180,
   "places": [
     {

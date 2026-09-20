@@ -226,6 +226,9 @@ public class ItineraryService {
     public ItineraryResponse updatePlaces(Long id, ItineraryPlacesEditRequest request) {
         Itinerary itinerary = itineraryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ITINERARY_NOT_FOUND));
+        if (request.travelMode() == TravelMode.BICYCLE) {
+            throw new BusinessException(ErrorCode.UNSUPPORTED_TRAVEL_MODE);
+        }
         if (!itinerary.getDepartureAt().isAfter(itinerary.getArrivalAt())) {
             throw new BusinessException(ErrorCode.INVALID_ITINERARY_PLAN_REQUEST);
         }
@@ -281,6 +284,7 @@ public class ItineraryService {
         List<String> warnings = planWarnings(entrySlackMinutes, stadiumDepartureRecommendedAt, expectedGameEndAt);
         itinerary.updatePlacePlan(
                 places,
+                request.travelMode() == null ? itinerary.getTravelMode() : request.travelMode().name(),
                 request.stadiumEntryBufferMinutes(),
                 stadiumArrivalAt,
                 gameStartSlackMinutes,
