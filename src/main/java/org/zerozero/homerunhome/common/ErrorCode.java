@@ -17,7 +17,11 @@ public enum ErrorCode {
     KAKAO_AUTHENTICATION_FAILED(HttpStatus.BAD_GATEWAY, "카카오 API 인증에 실패했습니다."),
     KAKAO_QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "카카오 API 호출 한도를 초과했습니다."),
     KAKAO_EXTERNAL_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "카카오 외부 서버에서 오류가 발생했습니다."),
-    KAKAO_API_REQUEST_FAILED(HttpStatus.BAD_GATEWAY, "카카오 API 요청을 처리하지 못했습니다.");
+    KAKAO_API_REQUEST_FAILED(HttpStatus.BAD_GATEWAY, "카카오 API 요청을 처리하지 못했습니다."),
+    ADDRESS_REQUIRED(HttpStatus.BAD_REQUEST, "주소를 입력해 주세요."),
+    INVALID_ADDRESS(HttpStatus.BAD_REQUEST, "주소 형식이 올바르지 않습니다."),
+    ADDRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "주소 검색 결과를 찾을 수 없습니다."),
+    ADDRESS_AMBIGUOUS(HttpStatus.CONFLICT, "주소 검색 결과가 여러 개입니다. 주소를 더 정확하게 입력해 주세요.");
 
     private final HttpStatus status;
     private final String message;
