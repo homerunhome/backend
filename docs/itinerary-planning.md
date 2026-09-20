@@ -98,6 +98,27 @@ Content-Type: application/json
 
 응답의 `places`는 계산된 방문 순서이며, 각 장소의 `travelFromPreviousMinutes`와 경기장까지 마지막 이동시간으로 도착·체류 시각을 계산합니다. 이동시간 구간이 누락되거나 중복되고, 후보 ID가 중복되거나 8곳을 넘으면 `INVALID_ITINERARY_PLAN_REQUEST`를 반환합니다. 이동시간이 같은 순서가 여러 개면 입력 후보 순서를 우선합니다.
 
+## 저장된 코스 주변 장소 추천
+
+저장된 일정의 장소 좌표를 기준으로 주변 후보를 조회하려면 일정 ID와 추천 카테고리를 전달합니다. 일정 응답 형식은 바뀌지 않으며, 이 API가 기존 코스 장소 후보 조회를 호출해 결과를 반환합니다.
+
+```http
+POST /api/itineraries/1/place-recommendations
+Content-Type: application/json
+```
+
+```json
+{
+  "categories": ["CAFE", "FOOD"],
+  "maxDistanceMeters": 1000,
+  "limit": 20
+}
+```
+
+`categories`는 필수이며 `FOOD`, `CAFE`, `CONVENIENCE_STORE`, `ACTIVITY`, `TOURIST_ATTRACTION`, `CULTURAL_FACILITY`, `FESTIVAL_EVENT`를 지원합니다. 거리와 개수는 선택 사항이며 생략하면 각각 1,000m와 30개를 사용합니다. `FESTIVAL_EVENT`를 요청하면 일정의 경기 날짜를 행사 날짜로 사용합니다.
+
+저장된 장소 중 위도·경도가 있는 지점을 검색 기준으로 사용합니다. 기준 좌표가 10개를 넘으면 코스 앞뒤를 포함해 10개 지점을 고르게 선택합니다. 좌표가 있는 장소가 없으면 `INVALID_COURSE_PLACE_CANDIDATE_REQUEST`를 반환합니다. 응답은 [`/api/course-place-candidates`](course-place-candidates.md)와 같은 형식입니다.
+
 ## 저장된 일정 장소 편집
 
 `PUT /api/itineraries/{id}/places`는 저장된 일정의 장소 전체 목록을 요청 배열 순서로 교체합니다. 원하는 최종 목록을 보내면 장소 추가·삭제·교체·재정렬과 체류시간 변경이 한 번에 적용되고, 편집 후 시간표가 다시 계산됩니다. `places: []`를 보내면 방문 장소를 모두 삭제합니다.

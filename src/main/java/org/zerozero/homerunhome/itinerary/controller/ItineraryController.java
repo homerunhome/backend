@@ -20,9 +20,12 @@ import org.zerozero.homerunhome.common.ApiErrorResponse;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryAutoPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlacesEditRequest;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryPlaceRecommendationRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryResponse;
 import org.zerozero.homerunhome.itinerary.service.ItineraryService;
+import org.zerozero.homerunhome.itinerary.service.ItineraryPlaceRecommendationService;
+import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceCandidateResponse;
 
 @RestController
 @RequestMapping("/api/itineraries")
@@ -31,6 +34,7 @@ import org.zerozero.homerunhome.itinerary.service.ItineraryService;
 public class ItineraryController {
 
     private final ItineraryService itineraryService;
+    private final ItineraryPlaceRecommendationService itineraryPlaceRecommendationService;
 
     @PostMapping("/generate")
     @Operation(
@@ -106,5 +110,15 @@ public class ItineraryController {
     })
     public ItineraryResponse get(@Parameter(description = "자동 증가 일정 ID", example = "1") @PathVariable Long id) {
         return itineraryService.get(id);
+    }
+
+    @PostMapping("/{id}/place-recommendations")
+    @Operation(
+            summary = "저장된 코스 주변 장소 추천",
+            description = "일정에 저장된 장소 좌표와 요청한 카테고리를 사용해 주변 장소 후보를 조회합니다.")
+    public CoursePlaceCandidateResponse recommendPlaces(
+            @Parameter(description = "자동 증가 일정 ID", example = "1") @PathVariable Long id,
+            @Valid @RequestBody ItineraryPlaceRecommendationRequest request) {
+        return itineraryPlaceRecommendationService.recommend(id, request);
     }
 }
