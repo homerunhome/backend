@@ -42,6 +42,26 @@ public class TrainScheduleController {
         return trainScheduleService.findStations(cityCode);
     }
 
+    @GetMapping("/to-daejeon")
+    @Operation(summary = "대전행 전체 열차 조회", description = "선택한 출발역에서 대전의 모든 역으로 가는 열차 시간표를 조회합니다.")
+    public List<TrainScheduleResponse> findSchedulesToDaejeon(
+            @Parameter(description = "TAGO 출발역 코드", example = "NAT010000")
+                    @RequestParam("departureStationId") @NotBlank String departureStationId,
+            @Parameter(description = "운행 날짜", example = "2026-09-20")
+                    @RequestParam("date") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return trainScheduleService.findSchedulesToDaejeon(departureStationId, date);
+    }
+
+    @GetMapping("/from-daejeon")
+    @Operation(summary = "대전 출발 전체 열차 조회", description = "대전의 모든 역에서 선택한 도착역으로 가는 열차 시간표를 조회합니다.")
+    public List<TrainScheduleResponse> findSchedulesFromDaejeon(
+            @Parameter(description = "TAGO 도착역 코드", example = "NAT010000")
+                    @RequestParam("arrivalStationId") @NotBlank String arrivalStationId,
+            @Parameter(description = "운행 날짜", example = "2026-09-20")
+                    @RequestParam("date") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return trainScheduleService.findSchedulesFromDaejeon(arrivalStationId, date);
+    }
+
     @GetMapping("/ktx")
     @Operation(
             summary = "KTX 시간표 조회",

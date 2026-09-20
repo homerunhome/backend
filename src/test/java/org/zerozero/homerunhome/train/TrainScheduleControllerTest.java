@@ -55,6 +55,31 @@ class TrainScheduleControllerTest {
     }
 
     @Test
+    void searchesAllDaejeonStationsInBothDirections() throws Exception {
+        LocalDate date = LocalDate.of(2026, 9, 20);
+        TrainScheduleResponse toDaejeon = new TrainScheduleResponse(
+                "001", "KTX", "서울", LocalDateTime.of(2026, 9, 20, 8, 0), "서대전", LocalDateTime.of(2026, 9, 20, 10, 0));
+        TrainScheduleResponse fromDaejeon = new TrainScheduleResponse(
+                "002", "무궁화호", "대전", LocalDateTime.of(2026, 9, 20, 18, 0), "서울", LocalDateTime.of(2026, 9, 20, 22, 0));
+        when(trainScheduleService.findSchedulesToDaejeon("NAT010000", date)).thenReturn(List.of(toDaejeon));
+        when(trainScheduleService.findSchedulesFromDaejeon("NAT010000", date)).thenReturn(List.of(fromDaejeon));
+
+        mockMvc.perform(get("/api/trains/to-daejeon")
+                        .param("departureStationId", "NAT010000")
+                        .param("date", "2026-09-20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].arrivalStation").value("서대전"));
+        mockMvc.perform(get("/api/trains/from-daejeon")
+                        .param("arrivalStationId", "NAT010000")
+                        .param("date", "2026-09-20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].trainType").value("무궁화호"));
+
+        verify(trainScheduleService).findSchedulesToDaejeon("NAT010000", date);
+        verify(trainScheduleService).findSchedulesFromDaejeon("NAT010000", date);
+    }
+
+    @Test
     void listsCityAndStationOptions() throws Exception {
         when(trainScheduleService.findCities()).thenReturn(List.of(new TrainCityResponse("11", "서울특별시")));
         when(trainScheduleService.findStations("11"))
