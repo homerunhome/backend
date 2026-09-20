@@ -23,6 +23,7 @@ import org.zerozero.homerunhome.kakao.dto.response.KakaoPlace;
 import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceCandidateRequest;
 import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceCategory;
 import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceProvider;
+import org.zerozero.homerunhome.place.candidate.service.CoursePlaceCandidateAssembler;
 import org.zerozero.homerunhome.place.candidate.service.CoursePlaceCandidateService;
 import org.zerozero.homerunhome.place.explore.dto.PlaceCoordinate;
 import org.zerozero.homerunhome.place.explore.dto.PlaceExploreScope;
@@ -43,7 +44,8 @@ class CoursePlaceCandidateServiceTest {
     void setUp() {
         kakaoClient = mock(KakaoApiClient.class);
         tourClient = mock(KoreanTourApiClient.class);
-        service = new CoursePlaceCandidateService(kakaoClient, tourClient);
+        service = new CoursePlaceCandidateService(
+                kakaoClient, tourClient, new CoursePlaceCandidateAssembler());
     }
 
     @Test
@@ -111,8 +113,66 @@ class CoursePlaceCandidateServiceTest {
                 List.of(CoursePlaceCategory.FESTIVAL_EVENT), "야구", 1500, gameDate, 30));
 
         assertThat(response.places()).singleElement()
-                .extracting(place -> place.externalId())
-                .isEqualTo("near");
+                .satisfies(place -> {
+                    assertEquals("near", place.externalId());
+                    assertEquals(gameDate, place.eventStartDate());
+                    assertEquals(gameDate, place.eventEndDate());
+                    assertEquals("042-123-4567", place.phone());
+                });
+    }
+
+    @Test
+    void searchesAroundEveryExistingCoursePoint() {
+        PlaceCoordinate first = coordinate("36.317067", "127.429188");
+        PlaceCoordinate second = coordinate("36.3322", "127.4345");
+        when(kakaoClient.searchPlacesByCategory(KakaoCategoryPlaceSearchRequest.around(
+                        "FD6", toKakao(first), 1000, 1, 15)))
+                .thenReturn(kakaoResult(List.of(kakaoPlace(
+                        "first", "첫 번째 장소 주변", "FD6", "127.430188", "36.317067"))));
+        when(kakaoClient.searchPlacesByCategory(KakaoCategoryPlaceSearchRequest.around(
+                        "FD6", toKakao(second), 1000, 1, 15)))
+                .thenReturn(kakaoResult(List.of(kakaoPlace(
+                        "second", "두 번째 장소 주변", "FD6", "127.4355", "36.3322"))));
+        CoursePlaceCandidateRequest request = new CoursePlaceCandidateRequest(
+                PlaceExploreScope.COURSE_NEARBY,
+                List.of(CoursePlaceCategory.FOOD),
+                null,
+                List.of(first, second),
+                null,
+                null,
+                1000,
+                null,
+                20);
+
+        var response = service.findCandidates(request);
+
+        assertThat(response.searchCenters()).containsExactly(first, second);
+        assertThat(response.places()).extracting(place -> place.externalId())
+                .containsExactlyInAnyOrder("first", "second");
+    }
+
+    @Test
+    void loadsAdditionalKakaoPagesWhenLimitExceedsOnePage() {
+        KakaoCategoryPlaceSearchRequest firstPage = KakaoCategoryPlaceSearchRequest.around(
+                "FD6", toKakao(STADIUM), 1500, 1, 15);
+        KakaoCategoryPlaceSearchRequest secondPage = KakaoCategoryPlaceSearchRequest.around(
+                "FD6", toKakao(STADIUM), 1500, 2, 15);
+        when(kakaoClient.searchPlacesByCategory(firstPage))
+                .thenReturn(new KakaoSearchResult<>(
+                        List.of(kakaoPlace("page-1", "첫 페이지", "FD6", "127.430", "36.317067")),
+                        2,
+                        2,
+                        false));
+        when(kakaoClient.searchPlacesByCategory(secondPage))
+                .thenReturn(kakaoResult(List.of(kakaoPlace(
+                        "page-2", "두 번째 페이지", "FD6", "127.431", "36.317067"))));
+
+        var response = service.findCandidates(request(
+                List.of(CoursePlaceCategory.FOOD), null, 1500, null, 30));
+
+        assertThat(response.places()).extracting(place -> place.externalId())
+                .containsExactly("page-1", "page-2");
+        verify(kakaoClient).searchPlacesByCategory(secondPage);
     }
 
     @Test
@@ -184,7 +244,7 @@ class CoursePlaceCandidateServiceTest {
                 name,
                 "분류",
                 category,
-                "",
+                "042-123-4567",
                 "대전 주소",
                 "대전 도로명",
                 new KakaoCoordinate(new BigDecimal(longitude), new BigDecimal(latitude)),
@@ -205,7 +265,7 @@ class CoursePlaceCandidateServiceTest {
                 title,
                 "대전 주소",
                 "",
-                "",
+                "042-123-4567",
                 "",
                 "",
                 image,

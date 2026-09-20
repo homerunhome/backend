@@ -136,6 +136,17 @@ class TourApiClientTest {
                           "cpyrhtDivCd":"Type1"
                         }]
                         """, 1), MediaType.APPLICATION_JSON));
+        koreanServer.expect(requestTo(Matchers.containsString("/KorService2/detailIntro2")))
+                .andExpect(queryParam("contentId", "125407"))
+                .andExpect(queryParam("contentTypeId", "12"))
+                .andRespond(withSuccess(successResponse("""
+                        [{
+                          "contentid":"125407",
+                          "usetime":"09:00~18:00",
+                          "restdate":"매주 월요일",
+                          "parking":"주차 가능"
+                        }]
+                        """, 1), MediaType.APPLICATION_JSON));
         barrierFreeServer.expect(requestTo(Matchers.containsString("/KorWithService2/detailWithTour2")))
                 .andExpect(queryParam("contentId", "125407"))
                 .andRespond(withSuccess(successResponse("""
@@ -144,10 +155,16 @@ class TourApiClientTest {
 
         var detail = koreanClient.findDetail("125407");
         var images = koreanClient.findImages("125407");
+        var intro = koreanClient.findIntro("125407", "12");
         var accessibility = barrierFreeClient.findDetail("125407");
 
         assertThat(detail).isPresent().get().extracting(content -> content.title()).isEqualTo("한밭수목원");
         assertThat(images).singleElement().extracting(image -> image.name()).isEqualTo("한밭수목원 전경");
+        assertThat(intro).isPresent().get().satisfies(info -> {
+            assertEquals("09:00~18:00", info.useTime());
+            assertEquals("매주 월요일", info.restDate());
+            assertEquals("주차 가능", info.parking());
+        });
         assertThat(accessibility).isPresent().get()
                 .extracting(info -> info.wheelchair())
                 .isEqualTo("대여 가능");
