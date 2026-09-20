@@ -63,7 +63,7 @@ vi ~/homerunhome/app.env
 각 항목을 `이름=값` 형식으로 작성합니다. `DB_URL`은 서버의 MySQL JDBC 주소,
 `DB_USERNAME`과 `DB_PASSWORD`는 실제 앱 DB 계정 정보입니다.
 `JPA_DDL_AUTO`는 현재 개발 환경에서 `update`로 설정합니다.
-`TAGO_SERVICE_KEY`는 열차 API 호출 시 필요합니다. 환경 파일은 systemd 형식이며 `export`를 넣지 않습니다.
+`TAGO_SERVICE_KEY`는 열차 API 호출 시 필요하고, `TOUR_API_SERVICE_KEY`는 관광 콘텐츠·행사·무장애 정보 조회 시 필요합니다. 환경 파일은 systemd 형식이며 `export`를 넣지 않습니다.
 `SERVER_PORT=8080`은 배포 후 검사 주소와 같게 유지합니다.
 
 ```bash
