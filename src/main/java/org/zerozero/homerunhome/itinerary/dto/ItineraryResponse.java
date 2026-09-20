@@ -9,6 +9,7 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.zerozero.homerunhome.game.domain.Game;
 import org.zerozero.homerunhome.itinerary.domain.Itinerary;
+import org.zerozero.homerunhome.itinerary.domain.ItineraryTimelineEntry;
 
 @Schema(description = "원정 일정 응답")
 public record ItineraryResponse(
@@ -25,6 +26,13 @@ public record ItineraryResponse(
         LocalDateTime departureAt,
         List<String> preferences,
         List<PlaceResponse> places,
+        String travelMode,
+        Integer stadiumEntryBufferMinutes,
+        LocalDateTime stadiumArrivalAt,
+        Long gameStartSlackMinutes,
+        String status,
+        List<String> warnings,
+        List<TimelineResponse> timeline,
         Instant createdAt) {
 
     public static ItineraryResponse from(Itinerary itinerary) {
@@ -48,12 +56,38 @@ public record ItineraryResponse(
                                 place.getName(),
                                 place.getAddress(),
                                 place.getLatitude(),
-                                place.getLongitude()))
+                                place.getLongitude(),
+                                place.getArrivesAt(),
+                                place.getDepartsAt(),
+                                place.getStayDurationMinutes(),
+                                place.getMustVisit(),
+                                place.getScheduled()))
+                        .toList(),
+                itinerary.getTravelMode(),
+                itinerary.getStadiumEntryBufferMinutes(),
+                itinerary.getStadiumArrivalAt(),
+                itinerary.getGameStartSlackMinutes(),
+                itinerary.getPlanStatus(),
+                itinerary.getPlanWarnings(),
+                itinerary.getTimeline().stream()
+                        .map(entry -> new TimelineResponse(
+                                entry.getType(), entry.getDescription(), entry.getStartsAt(), entry.getEndsAt()))
                         .toList(),
                 itinerary.getCreatedAt());
     }
 
     @Schema(description = "일정 내 장소 응답")
     public record PlaceResponse(
-            String placeId, String name, String address, BigDecimal latitude, BigDecimal longitude) {}
+            String placeId,
+            String name,
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            LocalDateTime arrivesAt,
+            LocalDateTime departsAt,
+            Long stayDurationMinutes,
+            Boolean mustVisit,
+            Boolean scheduled) {}
+
+    public record TimelineResponse(String type, String description, LocalDateTime startsAt, LocalDateTime endsAt) {}
 }

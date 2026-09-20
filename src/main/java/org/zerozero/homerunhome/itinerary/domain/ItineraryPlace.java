@@ -3,6 +3,7 @@ package org.zerozero.homerunhome.itinerary.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -28,5 +29,20 @@ public class ItineraryPlace {
 
     @Column(precision = 10, scale = 7)
     private BigDecimal longitude;
+
+    @Column(name = "arrives_at")
+    private LocalDateTime arrivesAt;
+
+    @Column(name = "departs_at")
+    private LocalDateTime departsAt;
+
+    @Column(name = "stay_duration_minutes")
+    private Long stayDurationMinutes;
+
+    @Column(name = "must_visit")
+    private Boolean mustVisit;
+
+    @Column(name = "place_scheduled")
+    private Boolean scheduled;
 
 }

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import jakarta.validation.constraints.Min;
 
 @Schema(description = "선택한 경기로 원정 일정 생성 요청")
 public record ItineraryRequest(
@@ -24,7 +25,14 @@ public record ItineraryRequest(
         @Schema(description = "선택한 관광 성향", example = "[\"FOOD\", \"CAFE\"]")
         @Size(max = 10) List<@NotBlank @Size(max = 50) String> preferences,
         @Schema(description = "일정 내 장소 목록. 전달한 배열 순서대로 저장됩니다.")
-        @Size(max = 100) List<@Valid PlaceRequest> places) {
+        @Size(max = 100) List<@Valid PlaceRequest> places,
+        @Size(max = 30) String travelMode,
+        @Min(0) Integer stadiumEntryBufferMinutes,
+        LocalDateTime stadiumArrivalAt,
+        Long gameStartSlackMinutes,
+        @Size(max = 40) String status,
+        @Size(max = 20) List<@NotBlank @Size(max = 50) String> warnings,
+        @Size(max = 300) List<@Valid TimelineRequest> timeline) {
 
     @Schema(description = "일정에 포함할 장소")
     public record PlaceRequest(
@@ -37,5 +45,17 @@ public record ItineraryRequest(
             @Schema(description = "위도", example = "36.3275")
             BigDecimal latitude,
             @Schema(description = "경도", example = "127.4270")
-            BigDecimal longitude) {}
+            BigDecimal longitude,
+            LocalDateTime arrivesAt,
+            LocalDateTime departsAt,
+            @Min(0) Long stayDurationMinutes,
+            Boolean mustVisit,
+            Boolean scheduled) {}
+
+    @Schema(description = "코스 시간표 항목")
+    public record TimelineRequest(
+            @NotBlank @Size(max = 40) String type,
+            @NotBlank @Size(max = 300) String description,
+            @NotNull LocalDateTime startsAt,
+            @NotNull LocalDateTime endsAt) {}
 }
