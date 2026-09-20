@@ -1,0 +1,153 @@
+package org.zerozero.homerunhome.train.client;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClient;
+import org.zerozero.homerunhome.common.BusinessException;
+import org.zerozero.homerunhome.common.ErrorCode;
+import org.zerozero.homerunhome.train.dto.TrainCityResponse;
+import org.zerozero.homerunhome.train.dto.TrainScheduleResponse;
+import org.zerozero.homerunhome.train.dto.TrainStationResponse;
+
+@Component
+public class TagoTrainClient {
+
+    private static final DateTimeFormatter TAGO_DATE_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
+    private static final ParameterizedTypeReference<Map<String, Object>> RESPONSE_TYPE =
+            new ParameterizedTypeReference<>() {};
+
+    private final RestClient restClient;
+    private final String serviceKey;
+
+    public TagoTrainClient(
+            RestClient.Builder builder,
+            @Value("${tago.base-url:https://apis.data.go.kr/1613000/TrainInfoService}") String baseUrl,
+            @Value("${tago.service-key:}") String serviceKey) {
+        this.restClient = builder.baseUrl(baseUrl).build();
+        this.serviceKey = serviceKey;
+    }
+
+    public List<TrainScheduleResponse> findKtxSchedules(
+            String departureStationId, String arrivalStationId, LocalDate date) {
+        Map<String, Object> response = request(
+                "getStrtpntAlocFndTrainInfo",
+                Map.of(
+                        "depPlaceId", departureStationId,
+                        "arrPlaceId", arrivalStationId,
+                        "depPlandTime", date.format(DateTimeFormatter.BASIC_ISO_DATE),
+                        "trainGradeCode", "00"));
+        return parseSchedules(response);
+    }
+
+    public List<TrainCityResponse> findCities() {
+        return parseItems(request("getCtyCodeList", Map.of())).stream()
+                .map(item -> new TrainCityResponse(
+                        stringValue(item.get("citycode")), stringValue(item.get("cityname"))))
+                .toList();
+    }
+
+    public List<TrainStationResponse> findStations(String cityCode) {
+        return parseItems(request("getCtyAcctoTrainSttnList", Map.of("cityCode", cityCode))).stream()
+                .map(item -> new TrainStationResponse(
+                        stringValue(item.get("nodeid")),
+                        stringValue(item.get("nodename")),
+                        stringValue(item.get("citycode"))))
+                .toList();
+    }
+
+    private Map<String, Object> request(String operation, Map<String, String> parameters) {
+        if (!StringUtils.hasText(serviceKey)) {
+            throw new BusinessException(ErrorCode.TAGO_API_KEY_NOT_CONFIGURED);
+        }
+
+        try {
+            return restClient.get()
+                    .uri(uriBuilder -> {
+                        var builder = uriBuilder.path("/" + operation)
+                                .queryParam("serviceKey", serviceKey)
+                                .queryParam("_type", "json")
+                                .queryParam("numOfRows", 100)
+                                .queryParam("pageNo", 1);
+                        parameters.forEach(builder::queryParam);
+                        return builder.build();
+                    })
+                    .retrieve()
+                    .body(RESPONSE_TYPE);
+        } catch (RuntimeException exception) {
+            if (exception instanceof BusinessException businessException) {
+                throw businessException;
+            }
+            throw new BusinessException(ErrorCode.TRAIN_SCHEDULE_PROVIDER_ERROR);
+        }
+    }
+
+    private List<TrainScheduleResponse> parseSchedules(Map<String, Object> response) {
+        List<TrainScheduleResponse> schedules = new ArrayList<>();
+        for (Map<?, ?> fields : parseItems(response)) {
+            String trainType = stringValue(fields.get("traingradename"));
+            if (!trainType.toUpperCase(Locale.ROOT).contains("KTX")) {
+                continue;
+            }
+            schedules.add(new TrainScheduleResponse(
+                    stringValue(fields.get("trainno")),
+                    trainType,
+                    stringValue(fields.get("depplacename")),
+                    parseDateTime(fields.get("depplandtime")),
+                    stringValue(fields.get("arrplacename")),
+                    parseDateTime(fields.get("arrplandtime"))));
+        }
+        return List.copyOf(schedules);
+    }
+
+    private List<Map<?, ?>> parseItems(Map<String, Object> response) {
+        Map<?, ?> responseNode = childMap(response, "response");
+        Map<?, ?> header = childMap(responseNode, "header");
+        if (!"00".equals(stringValue(header.get("resultCode")))) {
+            throw new BusinessException(ErrorCode.TRAIN_SCHEDULE_PROVIDER_ERROR);
+        }
+        Map<?, ?> body = childMap(responseNode, "body");
+        Map<?, ?> items = childMap(body, "items");
+        Object itemValue = items.get("item");
+        if (itemValue == null) {
+            return List.of();
+        }
+        List<?> itemList = itemValue instanceof List<?> list ? list : List.of(itemValue);
+        List<Map<?, ?>> result = new ArrayList<>(itemList.size());
+        for (Object item : itemList) {
+            if (!(item instanceof Map<?, ?> fields)) {
+                throw new BusinessException(ErrorCode.TRAIN_SCHEDULE_PROVIDER_ERROR);
+            }
+            result.add(fields);
+        }
+        return List.copyOf(result);
+    }
+
+    private Map<?, ?> childMap(Object parent, String key) {
+        if (parent instanceof Map<?, ?> map && map.get(key) instanceof Map<?, ?> child) {
+            return child;
+        }
+        return Map.of();
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private LocalDateTime parseDateTime(Object value) {
+        try {
+            return LocalDateTime.parse(stringValue(value), TAGO_DATE_TIME);
+        } catch (DateTimeParseException exception) {
+            throw new BusinessException(ErrorCode.TRAIN_SCHEDULE_PROVIDER_ERROR);
+        }
+    }
+}
