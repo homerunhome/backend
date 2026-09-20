@@ -62,6 +62,15 @@ public class Itinerary {
     @Column(name = "game_start_slack_minutes")
     private Long gameStartSlackMinutes;
 
+    @Column(name = "stadium_departure_recommended_at")
+    private LocalDateTime stadiumDepartureRecommendedAt;
+
+    @Column(name = "expected_game_end_at")
+    private LocalDateTime expectedGameEndAt;
+
+    @Column(name = "game_end_may_be_delayed")
+    private Boolean gameEndMayBeDelayed;
+
     @Column(name = "plan_status", length = 40)
     private String planStatus;
 
@@ -108,6 +117,9 @@ public class Itinerary {
             Integer stadiumEntryBufferMinutes,
             LocalDateTime stadiumArrivalAt,
             Long gameStartSlackMinutes,
+            LocalDateTime stadiumDepartureRecommendedAt,
+            LocalDateTime expectedGameEndAt,
+            Boolean gameEndMayBeDelayed,
             String planStatus,
             List<String> planWarnings,
             List<ItineraryTimelineEntry> timeline) {
@@ -122,6 +134,9 @@ public class Itinerary {
         this.stadiumEntryBufferMinutes = stadiumEntryBufferMinutes;
         this.stadiumArrivalAt = stadiumArrivalAt;
         this.gameStartSlackMinutes = gameStartSlackMinutes;
+        this.stadiumDepartureRecommendedAt = stadiumDepartureRecommendedAt;
+        this.expectedGameEndAt = expectedGameEndAt;
+        this.gameEndMayBeDelayed = gameEndMayBeDelayed;
         this.planStatus = planStatus;
         this.planWarnings = new ArrayList<>(planWarnings);
         this.timeline = new ArrayList<>(timeline);
@@ -153,6 +168,9 @@ public class Itinerary {
         this.stadiumEntryBufferMinutes = stadiumEntryBufferMinutes;
         this.stadiumArrivalAt = stadiumArrivalAt;
         this.gameStartSlackMinutes = gameStartSlackMinutes;
+        this.stadiumDepartureRecommendedAt = null;
+        this.expectedGameEndAt = null;
+        this.gameEndMayBeDelayed = null;
         this.planStatus = planStatus;
         this.planWarnings = new ArrayList<>(planWarnings);
         this.timeline = new ArrayList<>(timeline);

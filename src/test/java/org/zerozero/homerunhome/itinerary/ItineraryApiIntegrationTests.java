@@ -95,6 +95,79 @@ class ItineraryApiIntegrationTests {
     }
 
     @Test
+    void generatesAndPersistsCalculatedCourseAndGameEndEstimate() throws Exception {
+        String location = mockMvc.perform(post("/api/itineraries/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "arrivalPlace":"대전역",
+                                  "arrivalAt":"2026-09-20T12:00:00",
+                                  "departurePlace":"대전역",
+                                  "departureAt":"2026-09-21T00:30:00",
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":20,
+                                  "stadiumToDepartureMinutes":45,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[
+                                    {"placeId":"tour-1","name":"한밭수목원","travelFromPreviousMinutes":20,"stayDurationMinutes":60,"mustVisit":true},
+                                    {"placeId":"food-1","name":"식당","travelFromPreviousMinutes":15,"stayDurationMinutes":45}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(header().exists("Location"))
+                .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T14:40:00"))
+                .andExpect(jsonPath("$.gameStartSlackMinutes").value(230))
+                .andExpect(jsonPath("$.stadiumDepartureRecommendedAt").value("2026-09-20T23:00:00"))
+                .andExpect(jsonPath("$.expectedGameEndAt").value("2026-09-20T21:30:00"))
+                .andExpect(jsonPath("$.gameEndMayBeDelayed").value(true))
+                .andExpect(jsonPath("$.status").value("AMPLE"))
+                .andExpect(jsonPath("$.places[0].arrivesAt").value("2026-09-20T12:20:00"))
+                .andExpect(jsonPath("$.places[1].arrivesAt").value("2026-09-20T13:35:00"))
+                .andExpect(jsonPath("$.timeline.length()").value(8))
+                .andReturn()
+                .getResponse()
+                .getHeader("Location");
+
+        String id = location.substring(location.lastIndexOf('/') + 1);
+        mockMvc.perform(get("/api/itineraries/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expectedGameEndAt").value("2026-09-20T21:30:00"))
+                .andExpect(jsonPath("$.gameEndMayBeDelayed").value(true));
+    }
+
+    @Test
+    void returnsOvertimeAndTravelWarningsWhenPlanDoesNotFit() throws Exception {
+        mockMvc.perform(post("/api/itineraries/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "arrivalPlace":"대전역",
+                                  "arrivalAt":"2026-09-20T17:30:00",
+                                  "departurePlace":"대전역",
+                                  "departureAt":"2026-09-20T22:00:00",
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":10,
+                                  "stadiumToDepartureMinutes":60,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[
+                                    {"placeId":"tour-1","name":"한밭수목원","travelFromPreviousMinutes":20,"stayDurationMinutes":50}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T18:50:00"))
+                .andExpect(jsonPath("$.status").value("RETURN_CAUTION"))
+                .andExpect(jsonPath("$.warnings.length()").value(3))
+                .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.places[0].scheduled").value(true));
+    }
+
+    @Test
     void rejectsMissingRequiredFields() throws Exception {
         mockMvc.perform(post("/api/itineraries")
                         .contentType(MediaType.APPLICATION_JSON)
