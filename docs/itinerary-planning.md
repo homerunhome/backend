@@ -158,6 +158,48 @@ Content-Type: application/json
 
 응답은 계산된 장소별 도착·출발 시각과 이동시간, 경기장 도착 예정시각, 경기 시작까지 여유, 경기장 출발 권장시각, `returnTransportBoardable` 탑승 가능 여부, 상태와 경고를 반환합니다. 시간이 부족하거나 귀가편을 탈 수 없는 입력도 저장을 차단하지 않고 원인 경고와 함께 계산 결과를 반환합니다. 일정 ID가 없으면 `ITINERARY_NOT_FOUND`, 필드 값이 유효하지 않으면 `VALIDATION_ERROR`를 반환합니다.
 
+## 저장된 일정 전체 수정
+
+`PUT /api/itineraries/{id}/plan`은 도착·귀가 장소와 시각, 선택 열차, 성향, 방문 장소를 한 번에 교체하고 코스 시간표를 다시 계산합니다. 도착·출발 시각은 서로 다른 날짜를 포함할 수 있으며, 출발 시각은 도착 시각보다 늦어야 합니다. 열차 정보는 선택 사항이고 `null`을 보내면 기존 열차 정보를 지웁니다. `places`는 이동시간을 포함한 최종 방문 목록이며 최대 8곳까지 전달합니다.
+
+```http
+PUT /api/itineraries/1/plan
+Content-Type: application/json
+```
+
+```json
+{
+  "arrivalPlace": "대전역",
+  "arrivalAt": "2026-09-20T13:00:00",
+  "arrivalTrain": null,
+  "departurePlace": "대전역",
+  "departureAt": "2026-09-21T00:30:00",
+  "returnTrain": null,
+  "preferences": ["BREAD", "CULTURE"],
+  "stadiumEntryBufferMinutes": 30,
+  "finalLegToStadiumMinutes": 20,
+  "stadiumToDepartureMinutes": 45,
+  "postGameCrowdBufferMinutes": 30,
+  "boardingBufferMinutes": 15,
+  "travelMode": "PUBLIC_TRANSIT",
+  "expectedGameDurationMinutes": 180,
+  "places": [
+    {
+      "placeId": "place-1",
+      "name": "한밭수목원",
+      "address": "대전광역시 서구 둔산대로 169",
+      "latitude": 36.366,
+      "longitude": 127.388,
+      "travelFromPreviousMinutes": 20,
+      "stayDurationMinutes": 60,
+      "mustVisit": true
+    }
+  ]
+}
+```
+
+응답에는 변경된 교통편·성향과 재계산된 방문 시각, 경기장 도착 예정, 귀가 권장 시각, 상태 및 경고가 포함됩니다. 경기 입장이나 귀가가 촉박해도 일정을 저장하고 관련 경고를 반환합니다.
+
 ## 응답 계산
 
 - `stadiumArrivalAt`: 장소 체류·이동시간과 마지막 경기장 이동시간의 누적값

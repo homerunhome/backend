@@ -17,6 +17,7 @@ import org.zerozero.homerunhome.itinerary.domain.ItineraryPlace;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryTimelineEntry;
 import org.zerozero.homerunhome.itinerary.domain.ItineraryTrain;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryAutoPlanRequest;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanEditRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlacesEditRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
@@ -226,28 +227,86 @@ public class ItineraryService {
     public ItineraryResponse updatePlaces(Long id, ItineraryPlacesEditRequest request) {
         Itinerary itinerary = itineraryRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ITINERARY_NOT_FOUND));
-        if (request.travelMode() == TravelMode.BICYCLE) {
+        return recalculatePlan(
+                itinerary,
+                itinerary.getArrivalPlace(),
+                itinerary.getArrivalAt(),
+                trainRequest(itinerary.getArrivalTrain()),
+                itinerary.getDeparturePlace(),
+                itinerary.getDepartureAt(),
+                trainRequest(itinerary.getReturnTrain()),
+                itinerary.getPreferences(),
+                request.stadiumEntryBufferMinutes(),
+                request.finalLegToStadiumMinutes(),
+                request.stadiumToDepartureMinutes(),
+                request.postGameCrowdBufferMinutes(),
+                request.boardingBufferMinutes(),
+                request.travelMode() == null ? travelMode(itinerary.getTravelMode()) : request.travelMode(),
+                request.expectedGameDurationMinutes(),
+                request.places());
+    }
+
+    @Transactional
+    public ItineraryResponse updatePlan(Long id, ItineraryPlanEditRequest request) {
+        Itinerary itinerary = itineraryRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ITINERARY_NOT_FOUND));
+        return recalculatePlan(
+                itinerary,
+                request.arrivalPlace(),
+                request.arrivalAt(),
+                request.arrivalTrain(),
+                request.departurePlace(),
+                request.departureAt(),
+                request.returnTrain(),
+                request.preferences(),
+                request.stadiumEntryBufferMinutes(),
+                request.finalLegToStadiumMinutes(),
+                request.stadiumToDepartureMinutes(),
+                request.postGameCrowdBufferMinutes(),
+                request.boardingBufferMinutes(),
+                request.travelMode(),
+                request.expectedGameDurationMinutes(),
+                request.places());
+    }
+
+    private ItineraryResponse recalculatePlan(
+            Itinerary itinerary,
+            String arrivalPlace,
+            LocalDateTime arrivalAt,
+            ItineraryTrainRequest arrivalTrain,
+            String departurePlace,
+            LocalDateTime departureAt,
+            ItineraryTrainRequest returnTrain,
+            List<String> preferences,
+            Integer stadiumEntryBufferMinutes,
+            Long finalLegToStadiumMinutes,
+            Long stadiumToDepartureMinutes,
+            Integer postGameCrowdBufferMinutes,
+            Integer boardingBufferMinutes,
+            TravelMode travelMode,
+            Integer expectedGameDurationMinutes,
+            List<ItineraryPlacesEditRequest.PlaceEditRequest> requestedPlaces) {
+        if (travelMode == TravelMode.BICYCLE) {
             throw new BusinessException(ErrorCode.UNSUPPORTED_TRAVEL_MODE);
         }
-        if (!itinerary.getDepartureAt().isAfter(itinerary.getArrivalAt())) {
+        if (!departureAt.isAfter(arrivalAt)) {
             throw new BusinessException(ErrorCode.INVALID_ITINERARY_PLAN_REQUEST);
         }
 
         Game game = itinerary.getGame();
         LocalDateTime gameStartAt = LocalDateTime.of(game.getGameDate(), game.getGameStartTime());
-        LocalDateTime expectedGameEndAt = gameStartAt.plusMinutes(
-                request.expectedGameDurationMinutes() == null
-                        ? DEFAULT_EXPECTED_GAME_DURATION_MINUTES
-                        : request.expectedGameDurationMinutes());
-        LocalDateTime stadiumDepartureRecommendedAt = itinerary.getDepartureAt()
-                .minusMinutes(request.stadiumToDepartureMinutes())
-                .minusMinutes(request.postGameCrowdBufferMinutes())
-                .minusMinutes(request.boardingBufferMinutes());
+        LocalDateTime expectedGameEndAt = gameStartAt.plusMinutes(expectedGameDurationMinutes == null
+                ? DEFAULT_EXPECTED_GAME_DURATION_MINUTES
+                : expectedGameDurationMinutes);
+        LocalDateTime stadiumDepartureRecommendedAt = departureAt
+                .minusMinutes(stadiumToDepartureMinutes)
+                .minusMinutes(postGameCrowdBufferMinutes)
+                .minusMinutes(boardingBufferMinutes);
 
         List<ItineraryPlace> places = new ArrayList<>();
         List<ItineraryTimelineEntry> timeline = new ArrayList<>();
-        LocalDateTime cursor = itinerary.getArrivalAt();
-        for (ItineraryPlacesEditRequest.PlaceEditRequest place : request.places()) {
+        LocalDateTime cursor = arrivalAt;
+        for (ItineraryPlacesEditRequest.PlaceEditRequest place : requestedPlaces) {
             LocalDateTime arrivesAt = cursor.plusMinutes(place.travelFromPreviousMinutes());
             LocalDateTime departsAt = arrivesAt.plusMinutes(place.stayDurationMinutes());
             timeline.add(new ItineraryTimelineEntry("PLACE_TRANSFER", place.name(), cursor, arrivesAt));
@@ -267,7 +326,7 @@ public class ItineraryService {
             cursor = departsAt;
         }
 
-        LocalDateTime stadiumArrivalAt = cursor.plusMinutes(request.finalLegToStadiumMinutes());
+        LocalDateTime stadiumArrivalAt = cursor.plusMinutes(finalLegToStadiumMinutes);
         timeline.add(new ItineraryTimelineEntry(
                 "STADIUM_TRANSFER", game.getStadium(), cursor, stadiumArrivalAt));
         timeline.add(new ItineraryTimelineEntry(
@@ -275,17 +334,24 @@ public class ItineraryService {
         timeline.add(new ItineraryTimelineEntry(
                 "EXPECTED_GAME", "예상 경기 시간", gameStartAt, expectedGameEndAt));
         timeline.add(new ItineraryTimelineEntry(
-                "RETURN_PLAN", itinerary.getDeparturePlace(), stadiumDepartureRecommendedAt, itinerary.getDepartureAt()));
+                "RETURN_PLAN", departurePlace, stadiumDepartureRecommendedAt, departureAt));
         timeline.sort(Comparator.comparing(ItineraryTimelineEntry::getStartsAt));
 
         long gameStartSlackMinutes = Duration.between(stadiumArrivalAt, gameStartAt).toMinutes();
-        long entrySlackMinutes = gameStartSlackMinutes - request.stadiumEntryBufferMinutes();
+        long entrySlackMinutes = gameStartSlackMinutes - stadiumEntryBufferMinutes;
         String status = planStatus(entrySlackMinutes, stadiumDepartureRecommendedAt, expectedGameEndAt);
         List<String> warnings = planWarnings(entrySlackMinutes, stadiumDepartureRecommendedAt, expectedGameEndAt);
-        itinerary.updatePlacePlan(
+        itinerary.updateFullPlan(
+                arrivalPlace,
+                arrivalAt,
+                train(arrivalTrain),
+                departurePlace,
+                departureAt,
+                train(returnTrain),
+                preferences,
                 places,
-                request.travelMode() == null ? itinerary.getTravelMode() : request.travelMode().name(),
-                request.stadiumEntryBufferMinutes(),
+                travelMode.name(),
+                stadiumEntryBufferMinutes,
                 stadiumArrivalAt,
                 gameStartSlackMinutes,
                 stadiumDepartureRecommendedAt,
@@ -316,6 +382,22 @@ public class ItineraryService {
                         request.departureAt(),
                         request.arrivalStation(),
                         request.arrivalAt());
+    }
+
+    private ItineraryTrainRequest trainRequest(ItineraryTrain train) {
+        return train == null
+                ? null
+                : new ItineraryTrainRequest(
+                        train.getTrainNumber(),
+                        train.getTrainType(),
+                        train.getDepartureStation(),
+                        train.getDepartureAt(),
+                        train.getArrivalStation(),
+                        train.getArrivalAt());
+    }
+
+    private TravelMode travelMode(String value) {
+        return value == null ? TravelMode.PUBLIC_TRANSIT : TravelMode.valueOf(value);
     }
 
     private List<ItineraryPlace> places(ItineraryRequest request) {
