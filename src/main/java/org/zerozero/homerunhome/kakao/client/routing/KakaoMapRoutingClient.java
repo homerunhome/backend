@@ -153,11 +153,16 @@ public class KakaoMapRoutingClient {
                 .filter(Objects::nonNull)
                 .map(KakaoPublicTransitResponse.Route::properties)
                 .filter(Objects::nonNull)
+                .filter(route -> isBusOrSubway(route.type()))
                 .filter(route -> route.totalTime() != null && route.totalTime() >= 0)
                 .filter(route -> route.totalDistance() != null && route.totalDistance() >= 0)
                 .min(Comparator.comparing(KakaoPublicTransitResponse.RouteProperties::totalTime))
                 .map(route -> new KakaoTravelRoute(route.totalDistance(), Duration.ofSeconds(route.totalTime())))
                 .orElse(null);
+    }
+
+    private boolean isBusOrSubway(String routeType) {
+        return "BUS".equals(routeType) || "SUBWAY".equals(routeType);
     }
 
     private List<OffsetDirection> offsetDirections(KakaoCoordinate point, KakaoCoordinate otherPoint) {
