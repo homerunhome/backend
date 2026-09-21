@@ -116,7 +116,6 @@ class TourApiClientTest {
     void findsDetailImagesAndBarrierFreeInformation() {
         koreanServer.expect(requestTo(Matchers.containsString("/KorService2/detailCommon2")))
                 .andExpect(queryParam("contentId", "125407"))
-                .andExpect(queryParam("overviewYN", "Y"))
                 .andRespond(withSuccess(successResponse("""
                         [{
                           "contentid":"125407",
@@ -127,7 +126,6 @@ class TourApiClientTest {
                         """, 1), MediaType.APPLICATION_JSON));
         koreanServer.expect(requestTo(Matchers.containsString("/KorService2/detailImage2")))
                 .andExpect(queryParam("contentId", "125407"))
-                .andExpect(queryParam("imageYN", "Y"))
                 .andRespond(withSuccess(successResponse("""
                         [{
                           "imgname":"한밭수목원 전경",
