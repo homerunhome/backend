@@ -61,25 +61,15 @@ public class KoreanTourApiClient {
     }
 
     public Optional<TourApiContent> findDetail(String contentId) {
-        Map<String, Object> parameters = new LinkedHashMap<>();
-        parameters.put("contentId", contentId);
-        parameters.put("defaultYN", "Y");
-        parameters.put("firstImageYN", "Y");
-        parameters.put("areacodeYN", "Y");
-        parameters.put("catcodeYN", "Y");
-        parameters.put("addrinfoYN", "Y");
-        parameters.put("mapinfoYN", "Y");
-        parameters.put("overviewYN", "Y");
-        TourApiPage response = executor.execute(restClient, "detailCommon2", parameters, 1, 1);
+        TourApiPage response = executor.execute(
+                restClient, "detailCommon2", Map.of("contentId", contentId), 1, 1);
         return response.items().stream().findFirst().map(this::toContent);
     }
 
     public List<TourApiImage> findImages(String contentId) {
-        Map<String, Object> parameters = Map.of(
-                "contentId", contentId,
-                "imageYN", "Y",
-                "subImageYN", "Y");
-        return executor.execute(restClient, "detailImage2", parameters, 1, 100).items().stream()
+        return executor.execute(
+                        restClient, "detailImage2", Map.of("contentId", contentId), 1, 100)
+                .items().stream()
                 .map(this::toImage)
                 .toList();
     }
