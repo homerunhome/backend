@@ -357,6 +357,116 @@ class KakaoApiClientTest {
     }
 
     @Test
+    void retriesNearbyStartWhenKakaoCannotFindStartTransitNodeAndAddsWalkingTime() {
+        KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
+        KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andExpect(queryParam("start_x", "127.434"))
+                .andExpect(queryParam("start_y", "36.332"))
+                .andRespond(withSuccess("{\"status\":\"STARTNODES_NULL\"}", MediaType.APPLICATION_JSON));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andExpect(queryParam("start_x", Matchers.not("127.434")))
+                .andExpect(queryParam("start_y", Matchers.not("36.332")))
+                .andExpect(queryParam("end_x", "127.429"))
+                .andExpect(queryParam("end_y", "36.317"))
+                .andRespond(withSuccess(
+                        """
+                        {"status":"OK","routes":[{"properties":{"type":"BUS","totalDistance":4000,"totalTime":1800}}]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        assertEquals(
+                new KakaoTravelRoute(4250, Duration.ofSeconds(2050)),
+                client.findPublicTransitRoute(new KakaoRouteRequest(origin, destination)));
+        localServer.verify();
+    }
+
+    @Test
+    void retriesNearbyDestinationWhenKakaoCannotFindEndTransitNode() {
+        KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
+        KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andRespond(withSuccess("{\"status\":\"ENDNODES_NULL\"}", MediaType.APPLICATION_JSON));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andExpect(queryParam("start_x", "127.434"))
+                .andExpect(queryParam("start_y", "36.332"))
+                .andExpect(queryParam("end_x", Matchers.not("127.429")))
+                .andExpect(queryParam("end_y", Matchers.not("36.317")))
+                .andRespond(withSuccess(
+                        """
+                        {"status":"OK","routes":[{"properties":{"type":"BUS","totalDistance":4000,"totalTime":1800}}]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        KakaoTravelRoute route = client.findPublicTransitRoute(new KakaoRouteRequest(origin, destination));
+
+        assertEquals(new KakaoTravelRoute(4250, Duration.ofSeconds(2050)), route);
+        localServer.verify();
+    }
+
+    @Test
+    void retriesBothEndpointsWhenEachIsOutsideTransitNodeCoverage() {
+        KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
+        KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andRespond(withSuccess("{\"status\":\"STARTNODES_NULL\"}", MediaType.APPLICATION_JSON));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andExpect(queryParam("start_x", Matchers.not("127.434")))
+                .andExpect(queryParam("end_x", "127.429"))
+                .andRespond(withSuccess("{\"status\":\"ENDNODES_NULL\"}", MediaType.APPLICATION_JSON));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andExpect(queryParam("start_x", Matchers.not("127.434")))
+                .andExpect(queryParam("end_x", Matchers.not("127.429")))
+                .andRespond(withSuccess(
+                        """
+                        {"status":"OK","routes":[{"properties":{"type":"BUS","totalDistance":4000,"totalTime":1800}}]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        KakaoTravelRoute route = client.findPublicTransitRoute(new KakaoRouteRequest(origin, destination));
+
+        assertEquals(new KakaoTravelRoute(4500, Duration.ofSeconds(2300)), route);
+        localServer.verify();
+    }
+
+    @Test
+    void retriesNearbyWhenKakaoReturnsNoResults() {
+        KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
+        KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andRespond(withSuccess("{\"status\":\"NO_RESULTS\"}", MediaType.APPLICATION_JSON));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andExpect(queryParam("start_x", Matchers.not("127.434")))
+                .andRespond(withSuccess(
+                        """
+                        {"status":"OK","routes":[{"properties":{"type":"BUS","totalDistance":4000,"totalTime":1800}}]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        KakaoTravelRoute route = client.findPublicTransitRoute(new KakaoRouteRequest(origin, destination));
+
+        assertEquals(new KakaoTravelRoute(4250, Duration.ofSeconds(2050)), route);
+        localServer.verify();
+    }
+
+    @Test
+    void capsNearbyRetriesWhenKakaoHasNoTransitRoute() {
+        KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
+        KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
+        for (int attempt = 0; attempt <= 4; attempt++) {
+            localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                    .andRespond(withSuccess("{\"status\":\"NO_RESULTS\"}", MediaType.APPLICATION_JSON));
+        }
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> client.findPublicTransitRoute(new KakaoRouteRequest(origin, destination)));
+
+        assertEquals(ErrorCode.ROUTE_NOT_FOUND, exception.getErrorCode());
+        localServer.verify();
+    }
+
+    @Test
     void failsBeforeCallingProviderWhenApiKeyIsMissing() {
         KakaoClientExecutor executor = new KakaoClientExecutor(" ");
         KakaoApiClient clientWithoutKey = new KakaoApiClient(
