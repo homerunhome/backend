@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.nullValue;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -413,6 +414,78 @@ class ItineraryApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.places[0].travelFromPreviousMinutes").value(10))
                 .andExpect(jsonPath("$.places[0].name").value("두 번째 후보를 앞으로 이동"));
+    }
+
+    @Test
+    void editsJourneyTrainsPreferencesAndRecalculatesTheWholePlan() throws Exception {
+        String location = mockMvc.perform(post("/api/itineraries/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "gameId":"game-2026-09-20-001",
+                                  "arrivalPlace":"대전역",
+                                  "arrivalAt":"2026-09-20T12:00:00",
+                                  "departurePlace":"대전역",
+                                  "departureAt":"2026-09-21T00:30:00",
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":10,
+                                  "stadiumToDepartureMinutes":45,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "places":[]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getHeader("Location");
+        String id = location.substring(location.lastIndexOf('/') + 1);
+
+        mockMvc.perform(put("/api/itineraries/{id}/plan", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "arrivalPlace":"서대전역",
+                                  "arrivalAt":"2026-09-20T13:00:00",
+                                  "arrivalTrain":{
+                                    "trainNumber":"101",
+                                    "trainType":"ITX-마음",
+                                    "departureStation":"용산역",
+                                    "departureAt":"2026-09-20T11:20:00",
+                                    "arrivalStation":"서대전역",
+                                    "arrivalAt":"2026-09-20T13:00:00"
+                                  },
+                                  "departurePlace":"대전역",
+                                  "departureAt":"2026-09-21T00:30:00",
+                                  "returnTrain":null,
+                                  "preferences":["BREAD","CULTURE"],
+                                  "stadiumEntryBufferMinutes":30,
+                                  "finalLegToStadiumMinutes":20,
+                                  "stadiumToDepartureMinutes":30,
+                                  "postGameCrowdBufferMinutes":30,
+                                  "boardingBufferMinutes":15,
+                                  "travelMode":"WALK",
+                                  "expectedGameDurationMinutes":180,
+                                  "places":[
+                                    {"placeId":"new-place","name":"수정한 장소","address":"대전시","latitude":36.3,"longitude":127.4,"travelFromPreviousMinutes":25,"stayDurationMinutes":45,"mustVisit":true}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.arrivalPlace").value("서대전역"))
+                .andExpect(jsonPath("$.arrivalAt").value("2026-09-20T13:00:00"))
+                .andExpect(jsonPath("$.arrivalTrain.trainNumber").value("101"))
+                .andExpect(jsonPath("$.departureAt").value("2026-09-21T00:30:00"))
+                .andExpect(jsonPath("$.returnTrain").value(nullValue()))
+                .andExpect(jsonPath("$.preferences[0]").value("BREAD"))
+                .andExpect(jsonPath("$.preferences[1]").value("CULTURE"))
+                .andExpect(jsonPath("$.travelMode").value("WALK"))
+                .andExpect(jsonPath("$.places[0].arrivesAt").value("2026-09-20T13:25:00"))
+                .andExpect(jsonPath("$.places[0].departsAt").value("2026-09-20T14:10:00"))
+                .andExpect(jsonPath("$.stadiumArrivalAt").value("2026-09-20T14:30:00"))
+                .andExpect(jsonPath("$.gameStartSlackMinutes").value(240))
+                .andExpect(jsonPath("$.stadiumDepartureRecommendedAt").value("2026-09-20T23:15:00"))
+                .andExpect(jsonPath("$.timeline.length()").value(6));
     }
 
     @Test

@@ -20,6 +20,7 @@ import org.zerozero.homerunhome.common.ApiErrorResponse;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryAutoPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlacesEditRequest;
+import org.zerozero.homerunhome.itinerary.dto.ItineraryPlanEditRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryPlaceRecommendationRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryRequest;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryResponse;
@@ -30,7 +31,7 @@ import org.zerozero.homerunhome.place.candidate.dto.CoursePlaceCandidateResponse
 @RestController
 @RequestMapping("/api/itineraries")
 @RequiredArgsConstructor
-@Tag(name = "원정 일정", description = "원정 일정 생성 및 조회")
+@Tag(name = "원정 일정", description = "원정 일정 생성·수정 및 조회")
 public class ItineraryController {
 
     private final ItineraryService itineraryService;
@@ -91,6 +92,16 @@ public class ItineraryController {
             @Parameter(description = "자동 증가 일정 ID", example = "1") @PathVariable Long id,
             @Valid @RequestBody ItineraryPlacesEditRequest request) {
         return itineraryService.updatePlaces(id, request);
+    }
+
+    @PutMapping("/{id}/plan")
+    @Operation(
+            summary = "저장된 일정의 교통편·성향·코스 수정",
+            description = "도착·귀가 교통편과 선호 성향, 장소 목록을 함께 반영해 시간표와 주의사항을 다시 계산합니다.")
+    public ItineraryResponse updatePlan(
+            @Parameter(description = "자동 증가 일정 ID", example = "1") @PathVariable Long id,
+            @Valid @RequestBody ItineraryPlanEditRequest request) {
+        return itineraryService.updatePlan(id, request);
     }
 
     @GetMapping("/{id}")

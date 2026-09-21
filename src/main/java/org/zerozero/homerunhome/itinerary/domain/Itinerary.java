@@ -235,6 +235,44 @@ public class Itinerary {
         this.timeline = new ArrayList<>(timeline);
     }
 
+    public void updateFullPlan(
+            String arrivalPlace,
+            LocalDateTime arrivalAt,
+            ItineraryTrain arrivalTrain,
+            String departurePlace,
+            LocalDateTime departureAt,
+            ItineraryTrain returnTrain,
+            List<String> preferences,
+            List<ItineraryPlace> places,
+            String travelMode,
+            Integer stadiumEntryBufferMinutes,
+            LocalDateTime stadiumArrivalAt,
+            Long gameStartSlackMinutes,
+            LocalDateTime stadiumDepartureRecommendedAt,
+            LocalDateTime expectedGameEndAt,
+            String planStatus,
+            List<String> planWarnings,
+            List<ItineraryTimelineEntry> timeline) {
+        this.arrivalPlace = arrivalPlace;
+        this.arrivalAt = arrivalAt;
+        this.arrivalTrain = arrivalTrain;
+        this.departurePlace = departurePlace;
+        this.departureAt = departureAt;
+        this.returnTrain = returnTrain;
+        this.preferences = new ArrayList<>(preferences);
+        updatePlacePlan(
+                places,
+                travelMode,
+                stadiumEntryBufferMinutes,
+                stadiumArrivalAt,
+                gameStartSlackMinutes,
+                stadiumDepartureRecommendedAt,
+                expectedGameEndAt,
+                planStatus,
+                planWarnings,
+                timeline);
+    }
+
     public List<String> getPreferences() {
         return List.copyOf(preferences);
     }
