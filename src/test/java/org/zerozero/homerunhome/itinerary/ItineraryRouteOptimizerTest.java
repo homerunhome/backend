@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.zerozero.homerunhome.common.BusinessException;
+import org.zerozero.homerunhome.common.ErrorCode;
 import org.zerozero.homerunhome.itinerary.dto.ItineraryAutoPlanRequest;
 import org.zerozero.homerunhome.itinerary.service.ItineraryRouteOptimizer;
 
@@ -31,9 +32,33 @@ class ItineraryRouteOptimizerTest {
     }
 
     @Test
-    void rejectsIncompleteRouteMatrix() {
-        assertThrows(BusinessException.class, () -> optimizer.optimize(
+    void findsRouteWhenUnusedLegsHaveNoRoute() {
+        ItineraryRouteOptimizer.OptimizedRoute route = optimizer.optimize(
+                List.of(place("a"), place("b")),
+                List.of(
+                        leg("ARRIVAL", "a", 1),
+                        leg("a", "b", 2),
+                        leg("b", "STADIUM", 3)));
+
+        assertEquals(List.of("a", "b"), route.placeIds());
+        assertEquals(List.of(1L, 2L), route.travelMinutes());
+        assertEquals(3L, route.finalLegMinutes());
+    }
+
+    @Test
+    void rejectsWhenNoCompleteRouteExists() {
+        BusinessException exception = assertThrows(BusinessException.class, () -> optimizer.optimize(
                 List.of(place("a")), List.of(leg("ARRIVAL", "a", 1))));
+
+        assertEquals(ErrorCode.ITINERARY_ROUTE_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void rejectsWhenDirectRouteToStadiumIsMissing() {
+        BusinessException exception = assertThrows(BusinessException.class, () -> optimizer.optimize(
+                List.of(), List.of()));
+
+        assertEquals(ErrorCode.ITINERARY_ROUTE_NOT_FOUND, exception.getErrorCode());
     }
 
     @Test
