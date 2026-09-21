@@ -13,6 +13,8 @@ public enum ErrorCode {
     GAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 등록된 경기 식별자입니다."),
     ITINERARY_NOT_FOUND(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."),
     INVALID_ITINERARY_PLAN_REQUEST(HttpStatus.BAD_REQUEST, "코스 생성 조건이 올바르지 않습니다."),
+    ITINERARY_ROUTE_NOT_FOUND(
+            HttpStatus.NOT_FOUND, "일정에 필요한 이동 경로를 찾을 수 없습니다. 장소나 이동수단을 조정해 주세요."),
     TAGO_API_KEY_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "열차 정보 API 인증키가 설정되지 않았습니다."),
     TRAIN_SCHEDULE_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "열차 시간표를 조회하지 못했습니다."),
     TOUR_API_KEY_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "TourAPI 인증키가 설정되지 않았습니다."),

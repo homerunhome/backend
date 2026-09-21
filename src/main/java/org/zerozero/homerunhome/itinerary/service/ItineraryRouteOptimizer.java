@@ -42,8 +42,12 @@ public class ItineraryRouteOptimizer {
         Map<RouteEdge, Long> minutesByEdge = routeMatrix(orderedInputIds, routeTimes);
         int count = orderedInputIds.size();
         if (count == 0) {
-            return new OptimizedRoute(List.of(), List.of(), minutesByEdge.get(edge(
-                    ItineraryAutoPlanRequest.ARRIVAL_NODE_ID, ItineraryAutoPlanRequest.STADIUM_NODE_ID)));
+            Long directRouteMinutes = minutesByEdge.get(edge(
+                    ItineraryAutoPlanRequest.ARRIVAL_NODE_ID, ItineraryAutoPlanRequest.STADIUM_NODE_ID));
+            if (directRouteMinutes == null) {
+                throw noCompleteRoute();
+            }
+            return new OptimizedRoute(List.of(), List.of(), directRouteMinutes);
         }
 
         int stateCount = 1 << count;
@@ -55,8 +59,11 @@ public class ItineraryRouteOptimizer {
         }
 
         for (int place = 0; place < count; place++) {
-            bestMinutes[1 << place][place] = minutesByEdge.get(edge(
+            Long arrivalMinutes = minutesByEdge.get(edge(
                     ItineraryAutoPlanRequest.ARRIVAL_NODE_ID, orderedInputIds.get(place)));
+            if (arrivalMinutes != null) {
+                bestMinutes[1 << place][place] = arrivalMinutes;
+            }
         }
 
         for (int mask = 1; mask < stateCount; mask++) {
@@ -69,9 +76,12 @@ public class ItineraryRouteOptimizer {
                     if ((mask & (1 << next)) != 0) {
                         continue;
                     }
+                    Long legMinutes = minutesByEdge.get(edge(orderedInputIds.get(last), orderedInputIds.get(next)));
+                    if (legMinutes == null) {
+                        continue;
+                    }
                     int nextMask = mask | (1 << next);
-                    long candidateMinutes = currentMinutes + minutesByEdge.get(
-                            edge(orderedInputIds.get(last), orderedInputIds.get(next)));
+                    long candidateMinutes = currentMinutes + legMinutes;
                     if (candidateMinutes < bestMinutes[nextMask][next]
                             || (candidateMinutes == bestMinutes[nextMask][next]
                                     && isEarlierPath(
@@ -88,8 +98,12 @@ public class ItineraryRouteOptimizer {
         int lastPlace = -1;
         long bestTotalMinutes = Long.MAX_VALUE;
         for (int place = 0; place < count; place++) {
-            long totalMinutes = bestMinutes[completeMask][place]
-                    + minutesByEdge.get(edge(orderedInputIds.get(place), ItineraryAutoPlanRequest.STADIUM_NODE_ID));
+            Long finalLegMinutes = minutesByEdge.get(
+                    edge(orderedInputIds.get(place), ItineraryAutoPlanRequest.STADIUM_NODE_ID));
+            if (bestMinutes[completeMask][place] == Long.MAX_VALUE || finalLegMinutes == null) {
+                continue;
+            }
+            long totalMinutes = bestMinutes[completeMask][place] + finalLegMinutes;
             if (totalMinutes < bestTotalMinutes
                     || (totalMinutes == bestTotalMinutes
                             && (lastPlace < 0 || isEarlierPath(
@@ -98,6 +112,9 @@ public class ItineraryRouteOptimizer {
                 bestTotalMinutes = totalMinutes;
                 lastPlace = place;
             }
+        }
+        if (lastPlace < 0) {
+            throw noCompleteRoute();
         }
 
         int[] order = new int[count];
@@ -150,9 +167,6 @@ public class ItineraryRouteOptimizer {
                 throw invalidPlan();
             }
         }
-        if (minutesByEdge.size() != expectedEdges.size()) {
-            throw invalidPlan();
-        }
         return minutesByEdge;
     }
 
@@ -188,6 +202,10 @@ public class ItineraryRouteOptimizer {
 
     private BusinessException invalidPlan() {
         return new BusinessException(ErrorCode.INVALID_ITINERARY_PLAN_REQUEST);
+    }
+
+    private BusinessException noCompleteRoute() {
+        return new BusinessException(ErrorCode.ITINERARY_ROUTE_NOT_FOUND);
     }
 
     private record RouteEdge(String from, String to) {}
