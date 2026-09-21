@@ -357,6 +357,30 @@ class KakaoApiClientTest {
     }
 
     @Test
+    void selectsFastestBusOrSubwayRouteAndIgnoresOtherRouteTypes() {
+        KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
+        KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
+        localServer.expect(requestTo(Matchers.containsString("/v2/routing/publictraffic")))
+                .andRespond(withSuccess(
+                        """
+                        {
+                          "status":"OK",
+                          "routes":[
+                            {"properties":{"type":"ETC","totalDistance":1200,"totalTime":300}},
+                            {"properties":{"type":"BUS","totalDistance":4000,"totalTime":1800}},
+                            {"properties":{"type":"SUBWAY","totalDistance":4250,"totalTime":1500}}
+                          ]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        KakaoTravelRoute route = client.findPublicTransitRoute(new KakaoRouteRequest(origin, destination));
+
+        assertEquals(new KakaoTravelRoute(4250, Duration.ofSeconds(1500)), route);
+        localServer.verify();
+    }
+
+    @Test
     void retriesNearbyStartWhenKakaoCannotFindStartTransitNodeAndAddsWalkingTime() {
         KakaoCoordinate origin = new KakaoCoordinate(new BigDecimal("127.434"), new BigDecimal("36.332"));
         KakaoCoordinate destination = new KakaoCoordinate(new BigDecimal("127.429"), new BigDecimal("36.317"));
